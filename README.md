@@ -1,6 +1,6 @@
 # Mr. Stat
 
-Telegram bot that watches a group chat, stores every message in SQLite, and once per day posts an AI-generated recap with a satirical IQ leaderboard. Users with fewer than 10 words in the period are skipped.
+Vibecoded telegram bot that watches a group chat, stores every message in SQLite, and once per day posts an AI-generated recap with a satirical IQ leaderboard. Users with fewer than 10 words in the period are skipped.
 
 ## Setup
 

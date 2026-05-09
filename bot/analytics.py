@@ -56,7 +56,7 @@ def _format_telegram(data: dict) -> str:
     users = data.get("users") or []
     users_sorted = sorted(users, key=lambda u: u.get("iq", 0), reverse=True)
 
-    lines = ["📊 Summary за сутки", ""]
+    lines = ["📊 Саммари за сутки", ""]
     if summary_text:
         lines += [summary_text, ""]
     lines.append("🧠 IQ-рейтинг:")
