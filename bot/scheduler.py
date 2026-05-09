@@ -10,6 +10,7 @@ from apscheduler.triggers.cron import CronTrigger
 from .analytics import aggregate_by_user, build_summary
 from .config import Config
 from .db import get_active_chat_ids, get_messages_for_period
+from .handlers import _chat_ref
 from .logging_sink import log_to_chat
 
 
@@ -24,6 +25,12 @@ async def run_summary_for_all_chats(bot: Bot, config: Config) -> None:
 
     for chat_id in chat_ids:
         try:
+            chat_obj = await bot.get_chat(chat_id)
+            chat_username = chat_obj.username
+        except Exception:
+            chat_username = None
+
+        try:
             messages = await get_messages_for_period(config.db_path, chat_id, since_ts)
             per_user = aggregate_by_user(messages, config.min_words)
             if not per_user:
@@ -35,14 +42,14 @@ async def run_summary_for_all_chats(bot: Bot, config: Config) -> None:
             )
             await bot.send_message(chat_id, text)
             await log_to_chat(
-                bot, config.logs_chat_id, f"daily summary in chat {chat_id}:\n{text}"
+                bot, config.logs_chat_id, f"daily summary in {_chat_ref(chat_id, chat_username)}:\n{text}"
             )
         except Exception:
             tb = traceback.format_exc()
             await log_to_chat(
                 bot,
                 config.logs_chat_id,
-                f"daily summary failed for chat {chat_id}:\n{tb}",
+                f"daily summary failed for {_chat_ref(chat_id, chat_username)}:\n{tb}",
                 level=logging.ERROR,
             )
 

@@ -22,13 +22,16 @@ def build_router(config: Config) -> Router:
     @router.message(Command("summary"))
     async def cmd_summary(message: Message, bot: Bot) -> None:
         try:
-            await _send_summary(bot, config, message.chat.id, reply_to=message)
+            await _send_summary(
+                bot, config, message.chat.id,
+                reply_to=message, chat_username=message.chat.username,
+            )
         except Exception:
             tb = traceback.format_exc()
             await log_to_chat(
                 bot,
                 config.logs_chat_id,
-                f"/summary failed in chat {message.chat.id}:\n{tb}",
+                f"/summary failed in {_chat_ref(message.chat.id, message.chat.username)}:\n{tb}",
                 level=logging.ERROR,
             )
             await message.reply("Summary failed. Fuck you. 🤗", allow_sending_without_reply=True)
@@ -68,12 +71,19 @@ def build_router(config: Config) -> Router:
     return router
 
 
+def _chat_ref(chat_id: int, username: str | None) -> str:
+    if username:
+        return f"chat {chat_id} (https://t.me/{username})"
+    return f"chat {chat_id}"
+
+
 async def _send_summary(
     bot: Bot,
     config: Config,
     chat_id: int,
     *,
     reply_to: Message | None = None,
+    chat_username: str | None = None,
 ) -> bool:
     """Build and deliver a summary for `chat_id`. Returns True if a summary was sent."""
     since_ts = int(time.time()) - PERIOD_SECONDS
@@ -97,5 +107,5 @@ async def _send_summary(
         await reply_to.reply(text, allow_sending_without_reply=True)
     else:
         await bot.send_message(chat_id, text)
-    await log_to_chat(bot, config.logs_chat_id, f"summary in chat {chat_id}:\n{text}")
+    await log_to_chat(bot, config.logs_chat_id, f"summary in {_chat_ref(chat_id, chat_username)}:\n{text}")
     return True
