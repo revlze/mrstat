@@ -61,7 +61,7 @@ def _format_telegram(data: dict) -> str:
         lines += [summary_text, ""]
     lines.append("🧠 IQ-рейтинг:")
     for index, user in enumerate(users_sorted, 1):
-        name = user.get("name", "???")
+        name = (user.get("name") or "???").replace("@", "@​")
         iq = user.get("iq", "???")
         comment = (user.get("comment") or "").strip()
         suffix = f" · {comment}" if comment else ""
