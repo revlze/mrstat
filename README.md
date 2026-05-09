@@ -20,7 +20,6 @@ Add the bot to a group **as an admin** so it can read messages (Telegram bots ge
 ## Deploy (Docker)
 
 ```bash
-git clone <repo> && cd mr-stat
 cp .env.example .env && echo "!!! fill in the values in .env !!!"
 docker compose up -d
 docker compose logs -f
