@@ -1,0 +1,59 @@
+import logging
+import time
+import traceback
+from zoneinfo import ZoneInfo
+
+from aiogram import Bot
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+
+from .analytics import aggregate_by_user, build_summary
+from .config import Config
+from .db import get_active_chat_ids, get_messages_for_period
+from .logging_sink import log_to_chat
+
+
+logger = logging.getLogger(__name__)
+PERIOD_SECONDS = 24 * 3600 # 24 hours
+
+
+async def run_summary_for_all_chats(bot: Bot, config: Config) -> None:
+    since_ts = int(time.time()) - PERIOD_SECONDS
+    chat_ids = await get_active_chat_ids(config.db_path, since_ts)
+    logger.info("daily summary tick: %d active chat(s)", len(chat_ids))
+
+    for chat_id in chat_ids:
+        try:
+            messages = await get_messages_for_period(config.db_path, chat_id, since_ts)
+            per_user = aggregate_by_user(messages, config.min_words)
+            if not per_user:
+                continue
+            text = await build_summary(
+                per_user,
+                api_key=config.openrouter_api_key,
+                model=config.openrouter_model,
+            )
+            await bot.send_message(chat_id, text)
+            await log_to_chat(
+                bot, config.logs_chat_id, f"daily summary in chat {chat_id}:\n{text}"
+            )
+        except Exception:
+            tb = traceback.format_exc()
+            await log_to_chat(
+                bot,
+                config.logs_chat_id,
+                f"daily summary failed for chat {chat_id}:\n{tb}",
+                level=logging.ERROR,
+            )
+
+
+def build_scheduler(bot: Bot, config: Config) -> AsyncIOScheduler:
+    scheduler = AsyncIOScheduler(timezone=ZoneInfo(config.summary_tz))
+    scheduler.add_job(
+        run_summary_for_all_chats,
+        CronTrigger(hour=config.summary_hour, minute=0),
+        kwargs={"bot": bot, "config": config},
+        id="daily-summary",
+        replace_existing=True,
+    )
+    return scheduler

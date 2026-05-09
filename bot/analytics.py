@@ -1,0 +1,69 @@
+import json
+import logging
+
+from .db import StoredMessage
+from .openrouter import chat_completion
+from .prompts import SYSTEM_PROMPT, build_user_prompt
+
+
+logger = logging.getLogger(__name__)
+
+
+def aggregate_by_user(
+    messages: list[StoredMessage], min_words: int
+) -> dict[int, dict]:
+    per_user: dict[int, dict] = {}
+    for message in messages:
+        info = per_user.setdefault(
+            message.user_id,
+            {"display_name": _display_name(message), "texts": [], "word_count": 0},
+        )
+        if message.username and not info["display_name"].startswith("@"):
+            info["display_name"] = f"@{message.username}"
+        info["texts"].append(message.text)
+        info["word_count"] += len(message.text.split())
+    return {uid: info for uid, info in per_user.items() if info["word_count"] >= min_words}
+
+
+async def build_summary(
+    per_user: dict[int, dict], *, api_key: str, model: str
+) -> str:
+    user_prompt = build_user_prompt(per_user)
+    response = await chat_completion(
+        api_key=api_key,
+        model=model,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt},
+        ],
+        response_format={"type": "json_object"},
+    )
+    content = response["choices"][0]["message"]["content"]
+    data = json.loads(content)
+    return _format_telegram(data)
+
+
+def _display_name(message: StoredMessage) -> str:
+    if message.username:
+        return f"@{message.username}"
+    if message.full_name:
+        return message.full_name
+    return str(message.user_id)
+
+
+def _format_telegram(data: dict) -> str:
+    summary_text = (data.get("summary") or "").strip()
+    users = data.get("users") or []
+    users_sorted = sorted(users, key=lambda u: u.get("iq", 0), reverse=True)
+
+    lines = ["📊 Summary за сутки", ""]
+    if summary_text:
+        lines += [summary_text, ""]
+    lines.append("🧠 IQ-рейтинг:")
+    for index, user in enumerate(users_sorted, 1):
+        name = user.get("name", "???")
+        iq = user.get("iq", "???")
+        comment = (user.get("comment") or "").strip()
+        suffix = f" · {comment}" if comment else ""
+        lines.append(f"{index}. {name} — {iq}{suffix}")
+    return "\n".join(lines)
