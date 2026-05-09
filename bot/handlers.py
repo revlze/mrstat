@@ -31,7 +31,7 @@ def build_router(config: Config) -> Router:
                 f"/summary failed in chat {message.chat.id}:\n{tb}",
                 level=logging.ERROR,
             )
-            await message.reply("Summary failed. Fuck you. 🤗")
+            await message.reply("Summary failed. Fuck you. 🤗", allow_sending_without_reply=True)
 
     @router.message(F.chat.type.in_({"group", "supergroup"}), F.text)
     async def on_text(message: Message) -> None:
@@ -83,7 +83,8 @@ async def _send_summary(
         if reply_to is not None:
             await reply_to.reply(
                 "Insufficient data for the last 24 hours "
-                f"(need at least {config.min_words} words from the user)."
+                f"(need at least {config.min_words} words from the user).",
+                allow_sending_without_reply=True,
             )
         return False
 
@@ -93,7 +94,7 @@ async def _send_summary(
         model=config.openrouter_model,
     )
     if reply_to is not None:
-        await reply_to.reply(text)
+        await reply_to.reply(text, allow_sending_without_reply=True)
     else:
         await bot.send_message(chat_id, text)
     await log_to_chat(bot, config.logs_chat_id, f"summary in chat {chat_id}:\n{text}")
