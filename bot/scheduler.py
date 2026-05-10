@@ -23,12 +23,23 @@ async def run_summary_for_all_chats(bot: Bot, config: Config) -> None:
     chat_ids = await get_active_chat_ids(config.db_path, since_ts)
     logger.info("daily summary tick: %d active chat(s)", len(chat_ids))
 
+    bot_id = (await bot.get_me()).id
+
     for chat_id in chat_ids:
         try:
             chat_obj = await bot.get_chat(chat_id)
             chat_username = chat_obj.username
         except Exception:
             chat_username = None
+
+        try:
+            member = await bot.get_chat_member(chat_id, bot_id)
+            if member.status in ("kicked", "left"):
+                logger.info("skipping chat %d: bot status is %s", chat_id, member.status)
+                continue
+        except Exception:
+            logger.info("skipping chat %d: could not get bot membership", chat_id)
+            continue
 
         try:
             messages = await get_messages_for_period(config.db_path, chat_id, since_ts)
