@@ -10,16 +10,14 @@ from apscheduler.triggers.cron import CronTrigger
 from .analytics import aggregate_by_user, build_summary
 from .config import Config
 from .db import delete_old_messages, get_active_chat_ids, get_messages_for_period
-from .handlers import _chat_ref
-from .logging_sink import log_to_chat
+from .logging_sink import chat_ref, log_to_chat
 
 
-logger = logging.getLogger(__name__)
-PERIOD_SECONDS = 24 * 3600 # 24 hours
+logger = logging.getLogger(__name__) # 24 hours
 
 
 async def run_summary_for_all_chats(bot: Bot, config: Config) -> None:
-    since_ts = int(time.time()) - PERIOD_SECONDS
+    since_ts = int(time.time()) - config.period_seconds
     chat_ids = await get_active_chat_ids(config.db_path, since_ts)
     logger.info("daily summary tick: %d active chat(s)", len(chat_ids))
 
@@ -53,14 +51,14 @@ async def run_summary_for_all_chats(bot: Bot, config: Config) -> None:
             )
             await bot.send_message(chat_id, text)
             await log_to_chat(
-                bot, config.logs_chat_id, f"daily summary in {_chat_ref(chat_id, chat_username)}:\n{text}"
+                bot, config.logs_chat_id, f"daily summary in {chat_ref(chat_id, chat_username)}:\n{text}"
             )
         except Exception:
             tb = traceback.format_exc()
             await log_to_chat(
                 bot,
                 config.logs_chat_id,
-                f"daily summary failed for {_chat_ref(chat_id, chat_username)}:\n{tb}",
+                f"daily summary failed for {chat_ref(chat_id, chat_username)}:\n{tb}",
                 level=logging.ERROR,
             )
 

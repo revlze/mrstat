@@ -9,11 +9,10 @@ from aiogram.types import Message
 from .analytics import aggregate_by_user, build_summary
 from .config import Config
 from .db import get_messages_for_period, save_message
-from .logging_sink import log_to_chat
+from .logging_sink import chat_ref, log_to_chat
 
 
 logger = logging.getLogger(__name__)
-PERIOD_SECONDS = 24 * 3600
 
 
 def build_router(config: Config) -> Router:
@@ -71,12 +70,6 @@ def build_router(config: Config) -> Router:
     return router
 
 
-def _chat_ref(chat_id: int, username: str | None) -> str:
-    if username:
-        return f"chat {chat_id} (https://t.me/{username})"
-    return f"chat {chat_id}"
-
-
 async def _send_summary(
     bot: Bot,
     config: Config,
@@ -86,7 +79,7 @@ async def _send_summary(
     chat_username: str | None = None,
 ) -> bool:
     """Build and deliver a summary for `chat_id`. Returns True if a summary was sent."""
-    since_ts = int(time.time()) - PERIOD_SECONDS
+    since_ts = int(time.time()) - config.period_seconds
     messages = await get_messages_for_period(config.db_path, chat_id, since_ts)
     per_user = aggregate_by_user(messages, config.min_words)
     if not per_user:
@@ -107,5 +100,5 @@ async def _send_summary(
         await reply_to.reply(text, allow_sending_without_reply=True)
     else:
         await bot.send_message(chat_id, text)
-    await log_to_chat(bot, config.logs_chat_id, f"summary in {_chat_ref(chat_id, chat_username)}:\n{text}")
+    await log_to_chat(bot, config.logs_chat_id, f"summary in {chat_ref(chat_id, chat_username)}:\n{text}")
     return True

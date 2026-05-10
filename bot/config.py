@@ -13,6 +13,11 @@ class Config:
     db_path: str
     min_words: int
     retention_days: int
+    summary_period_hours: int
+
+    @property
+    def period_seconds(self) -> int:
+        return self.summary_period_hours * 3600
 
     @classmethod
     def from_env(cls) -> Config:
@@ -26,6 +31,7 @@ class Config:
             db_path=os.getenv("DB_PATH", "mr-stat.db"),
             min_words=int(os.getenv("MIN_WORDS", "10")),
             retention_days=int(os.getenv("RETENTION_DAYS", "3")),
+            summary_period_hours=int(os.getenv("SUMMARY_PERIOD_HOURS", "24")),
         )
 
 
