@@ -58,9 +58,10 @@ def build_scheduler(bot: Bot, config: Config) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler(timezone=ZoneInfo(config.summary_tz))
     scheduler.add_job(
         run_summary_for_all_chats,
-        CronTrigger(hour=config.summary_hour, minute=0),
+        CronTrigger(hour=config.summary_hour, minute=0, timezone=ZoneInfo(config.summary_tz)),
         kwargs={"bot": bot, "config": config},
         id="daily-summary",
         replace_existing=True,
+        misfire_grace_time=3600,
     )
     return scheduler
