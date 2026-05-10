@@ -68,6 +68,15 @@ async def get_messages_for_period(
     return [StoredMessage(*row) for row in rows]
 
 
+async def delete_old_messages(db_path: str, before_ts: int) -> int:
+    async with aiosqlite.connect(db_path) as conn:
+        cursor = await conn.execute(
+            "DELETE FROM messages WHERE ts < ?", (before_ts,)
+        )
+        await conn.commit()
+        return cursor.rowcount
+
+
 async def get_active_chat_ids(db_path: str, since_ts: int) -> list[int]:
     async with aiosqlite.connect(db_path) as conn:
         cursor = await conn.execute(

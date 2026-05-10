@@ -12,6 +12,7 @@ class Config:
     summary_tz: str
     db_path: str
     min_words: int
+    retention_days: int
 
     @classmethod
     def from_env(cls) -> Config:
@@ -24,6 +25,7 @@ class Config:
             summary_tz=os.getenv("SUMMARY_TZ", "Europe/Moscow"),
             db_path=os.getenv("DB_PATH", "mr-stat.db"),
             min_words=int(os.getenv("MIN_WORDS", "10")),
+            retention_days=int(os.getenv("RETENTION_DAYS", "3")),
         )
 
 

@@ -9,7 +9,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 from .analytics import aggregate_by_user, build_summary
 from .config import Config
-from .db import get_active_chat_ids, get_messages_for_period
+from .db import delete_old_messages, get_active_chat_ids, get_messages_for_period
 from .handlers import _chat_ref
 from .logging_sink import log_to_chat
 
@@ -52,6 +52,11 @@ async def run_summary_for_all_chats(bot: Bot, config: Config) -> None:
                 f"daily summary failed for {_chat_ref(chat_id, chat_username)}:\n{tb}",
                 level=logging.ERROR,
             )
+
+    cutoff_ts = int(time.time()) - config.retention_days * 86400
+    deleted = await delete_old_messages(config.db_path, cutoff_ts)
+    if deleted:
+        logger.info("db rotation: deleted %d messages older than %d days", deleted, config.retention_days)
 
 
 def build_scheduler(bot: Bot, config: Config) -> AsyncIOScheduler:
