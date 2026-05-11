@@ -11,7 +11,7 @@ from aiogram.types import ChatMemberUpdated, Message
 
 from .analytics import aggregate_by_user, build_summary
 from .config import Config
-from .db import delete_user_messages, get_messages_for_period, get_summary_calls_today, increment_summary_calls, save_message
+from .db import delete_user_messages, get_messages_for_period, get_summary_calls_today, increment_summary_calls, save_message, update_message
 from .logging_sink import chat_ref, log_to_chat
 
 
@@ -110,6 +110,34 @@ def build_router(config: Config) -> Router:
             text=f"[фото]{caption}",
             ts=int(message.date.timestamp()),
         )
+
+    @router.edited_message(F.chat.type.in_({"group", "supergroup"}), F.text)
+    async def on_text_edited(message: Message) -> None:
+        text = message.text
+        if text is None or text.startswith("/") or message.from_user is None:
+            return
+        u = message.from_user
+        logger.debug(
+            "edit chat=%d(%s) user=%d(@%s %s): %s",
+            message.chat.id, message.chat.username or message.chat.title,
+            u.id, u.username or "", u.full_name,
+            text[:120],
+        )
+        await update_message(config.db_path, chat_id=message.chat.id, message_id=message.message_id, text=text)
+
+    @router.edited_message(F.chat.type.in_({"group", "supergroup"}), F.photo)
+    async def on_photo_edited(message: Message) -> None:
+        if message.from_user is None:
+            return
+        u = message.from_user
+        caption = f" {message.caption}" if message.caption else ""
+        logger.debug(
+            "edit photo chat=%d(%s) user=%d(@%s %s)%s",
+            message.chat.id, message.chat.username or message.chat.title,
+            u.id, u.username or "", u.full_name,
+            f" caption={message.caption[:60]}" if message.caption else "",
+        )
+        await update_message(config.db_path, chat_id=message.chat.id, message_id=message.message_id, text=f"[фото]{caption}")
 
     @router.chat_member(F.new_chat_member.status.in_({"kicked", "banned"}))
     async def on_user_banned(event: ChatMemberUpdated, bot: Bot) -> None:

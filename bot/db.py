@@ -103,6 +103,16 @@ async def increment_summary_calls(db_path: str, chat_id: int, date_str: str) -> 
         await conn.commit()
 
 
+async def update_message(db_path: str, *, chat_id: int, message_id: int, text: str) -> bool:
+    async with aiosqlite.connect(db_path) as conn:
+        cursor = await conn.execute(
+            "UPDATE messages SET text = ? WHERE chat_id = ? AND message_id = ?",
+            (text, chat_id, message_id),
+        )
+        await conn.commit()
+        return cursor.rowcount > 0
+
+
 async def delete_user_messages(db_path: str, chat_id: int, user_id: int) -> int:
     async with aiosqlite.connect(db_path) as conn:
         cursor = await conn.execute(
