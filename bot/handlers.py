@@ -46,7 +46,7 @@ def build_router(config: Config) -> Router:
             await log_to_chat(
                 bot,
                 config.logs_chat_id,
-                f"/summary failed in {_chat_ref(message.chat.id, message.chat.username)}:\n{tb}",
+                f"/summary failed in {chat_ref(message.chat.id, message.chat.username)}:\n{tb}",
                 level=logging.ERROR,
             )
             await message.reply("Summary failed. Fuck you. 🤗", allow_sending_without_reply=True)
