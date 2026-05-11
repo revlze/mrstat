@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 import traceback
@@ -16,6 +17,14 @@ from .logging_sink import chat_ref, log_to_chat
 
 logger = logging.getLogger(__name__)
 
+_summary_locks: dict[int, asyncio.Lock] = {}
+
+
+def _get_lock(chat_id: int) -> asyncio.Lock:
+    if chat_id not in _summary_locks:
+        _summary_locks[chat_id] = asyncio.Lock()
+    return _summary_locks[chat_id]
+
 
 def build_router(config: Config) -> Router:
     router = Router(name="mr-stat")
@@ -25,6 +34,10 @@ def build_router(config: Config) -> Router:
         user = message.from_user
         if user and (user.id == 6297657246 or (user.username or "").lower() == "voodoo"):
             await message.reply("fuck yourself, voodoo", allow_sending_without_reply=True)
+            return
+        lock = _get_lock(message.chat.id)
+        if lock.locked():
+            await message.reply("Summary is already being generated, wait.", allow_sending_without_reply=True)
             return
         if not (user and user.id == 754338369):
             date_str = datetime.now(ZoneInfo(config.summary_tz)).strftime("%Y-%m-%d")
@@ -36,20 +49,21 @@ def build_router(config: Config) -> Router:
                 )
                 return
             await increment_summary_calls(config.db_path, message.chat.id, date_str)
-        try:
-            await _send_summary(
-                bot, config, message.chat.id,
-                reply_to=message, chat_username=message.chat.username,
-            )
-        except Exception:
-            tb = traceback.format_exc()
-            await log_to_chat(
-                bot,
-                config.logs_chat_id,
-                f"/summary failed in {chat_ref(message.chat.id, message.chat.username)}:\n{tb}",
-                level=logging.ERROR,
-            )
-            await message.reply("Summary failed. Fuck you. 🤗", allow_sending_without_reply=True)
+        async with lock:
+            try:
+                await _send_summary(
+                    bot, config, message.chat.id,
+                    reply_to=message, chat_username=message.chat.username,
+                )
+            except Exception:
+                tb = traceback.format_exc()
+                await log_to_chat(
+                    bot,
+                    config.logs_chat_id,
+                    f"/summary failed in {chat_ref(message.chat.id, message.chat.username)}:\n{tb}",
+                    level=logging.ERROR,
+                )
+                await message.reply("Summary failed. Fuck you. 🤗", allow_sending_without_reply=True)
 
     @router.message(F.chat.type.in_({"group", "supergroup"}), F.text)
     async def on_text(message: Message) -> None:
