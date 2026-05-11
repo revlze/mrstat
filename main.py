@@ -15,9 +15,13 @@ from bot.scheduler import build_scheduler
 
 async def main() -> None:
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.WARNING,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
+    logging.getLogger("bot").setLevel(logging.DEBUG)
+    logging.getLogger("__main__").setLevel(logging.DEBUG)
+    logging.getLogger("aiogram").setLevel(logging.INFO)
+    logging.getLogger("apscheduler").setLevel(logging.INFO)
     load_dotenv()
     config = Config.from_env()
     await init_db(config.db_path)

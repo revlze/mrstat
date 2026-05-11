@@ -70,13 +70,20 @@ def build_router(config: Config) -> Router:
         text = message.text
         if text is None or text.startswith("/") or message.from_user is None:
             return
+        u = message.from_user
+        logger.debug(
+            "msg chat=%d(%s) user=%d(@%s %s): %s",
+            message.chat.id, message.chat.username or message.chat.title,
+            u.id, u.username or "", u.full_name,
+            text[:120],
+        )
         await save_message(
             config.db_path,
             chat_id=message.chat.id,
             message_id=message.message_id,
-            user_id=message.from_user.id,
-            username=message.from_user.username,
-            full_name=message.from_user.full_name,
+            user_id=u.id,
+            username=u.username,
+            full_name=u.full_name,
             text=text,
             ts=int(message.date.timestamp()),
         )
@@ -85,14 +92,21 @@ def build_router(config: Config) -> Router:
     async def on_photo(message: Message) -> None:
         if message.from_user is None:
             return
+        u = message.from_user
         caption = f" {message.caption}" if message.caption else ""
+        logger.debug(
+            "photo chat=%d(%s) user=%d(@%s %s)%s",
+            message.chat.id, message.chat.username or message.chat.title,
+            u.id, u.username or "", u.full_name,
+            f" caption={message.caption[:60]}" if message.caption else "",
+        )
         await save_message(
             config.db_path,
             chat_id=message.chat.id,
             message_id=message.message_id,
-            user_id=message.from_user.id,
-            username=message.from_user.username,
-            full_name=message.from_user.full_name,
+            user_id=u.id,
+            username=u.username,
+            full_name=u.full_name,
             text=f"[фото]{caption}",
             ts=int(message.date.timestamp()),
         )
@@ -101,11 +115,12 @@ def build_router(config: Config) -> Router:
     async def on_user_banned(event: ChatMemberUpdated, bot: Bot) -> None:
         user = event.new_chat_member.user
         deleted = await delete_user_messages(config.db_path, event.chat.id, user.id)
-        if deleted:
-            logger.info(
-                "Deleted %d messages of banned user %s (%d) in chat %d",
-                deleted, user.username or user.full_name, user.id, event.chat.id,
-            )
+        logger.info(
+            "banned user=%d(@%s %s) in chat=%d(%s): removed %d messages from DB",
+            user.id, user.username or "", user.full_name,
+            event.chat.id, event.chat.username or event.chat.title,
+            deleted,
+        )
 
     return router
 
