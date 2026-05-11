@@ -8,6 +8,7 @@ dependencies = [
     "aiogram>=3.27.0",
     "aiosqlite>=0.22.1",
     "apscheduler>=3.11.2",
+    "google-genai>=2.0.1",
     "httpx>=0.28.1",
     "python-dotenv>=1.2.2",
 ]

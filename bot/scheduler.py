@@ -48,6 +48,8 @@ async def run_summary_for_all_chats(bot: Bot, config: Config) -> None:
                 per_user,
                 api_key=config.openrouter_api_key,
                 model=config.openrouter_model,
+                gemini_api_key=config.gemini_api_key,
+                gemini_model=config.gemini_model,
             )
             await bot.send_message(chat_id, text)
             await log_to_chat(

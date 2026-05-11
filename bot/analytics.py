@@ -2,7 +2,8 @@ import json
 import logging
 
 from .db import StoredMessage
-from .openrouter import chat_completion
+from . import gemini as gemini_client
+from .openrouter import chat_completion as openrouter_chat_completion
 from .prompts import SYSTEM_PROMPT, build_user_prompt
 
 
@@ -26,19 +27,33 @@ def aggregate_by_user(
 
 
 async def build_summary(
-    per_user: dict[int, dict], *, api_key: str, model: str
+    per_user: dict[int, dict],
+    *,
+    api_key: str,
+    model: str,
+    gemini_api_key: str | None = None,
+    gemini_model: str | None = None,
 ) -> str:
     user_prompt = build_user_prompt(per_user)
-    response = await chat_completion(
-        api_key=api_key,
-        model=model,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ],
-        response_format={"type": "json_object"},
-    )
-    content = response["choices"][0]["message"]["content"]
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": user_prompt},
+    ]
+    if gemini_api_key:
+        content = await gemini_client.chat_completion(
+            api_key=gemini_api_key,
+            model=gemini_model or "gemini-2.5-flash",
+            messages=messages,
+            response_format={"type": "json_object"},
+        )
+    else:
+        response = await openrouter_chat_completion(
+            api_key=api_key,
+            model=model,
+            messages=messages,
+            response_format={"type": "json_object"},
+        )
+        content = response["choices"][0]["message"]["content"]
     data = json.loads(content)
     return _format_telegram(data)
 

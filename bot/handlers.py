@@ -110,6 +110,8 @@ async def _send_summary(
         per_user,
         api_key=config.openrouter_api_key,
         model=config.openrouter_model,
+        gemini_api_key=config.gemini_api_key,
+        gemini_model=config.gemini_model,
     )
     if reply_to is not None:
         await reply_to.reply(text, allow_sending_without_reply=True)
