@@ -1,6 +1,8 @@
 import logging
 import time
 import traceback
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from aiogram import Bot, F, Router
 from aiogram.filters import Command
@@ -8,7 +10,7 @@ from aiogram.types import Message
 
 from .analytics import aggregate_by_user, build_summary
 from .config import Config
-from .db import get_messages_for_period, save_message
+from .db import get_messages_for_period, get_summary_calls_today, increment_summary_calls, save_message
 from .logging_sink import chat_ref, log_to_chat
 
 
@@ -20,6 +22,19 @@ def build_router(config: Config) -> Router:
 
     @router.message(Command("summary"))
     async def cmd_summary(message: Message, bot: Bot) -> None:
+        user = message.from_user
+        if user and (user.id == 6297657246 or (user.username or "").lower() == "voodoo"):
+            await message.reply("fuck yourself, voodoo", allow_sending_without_reply=True)
+            return
+        date_str = datetime.now(ZoneInfo(config.summary_tz)).strftime("%Y-%m-%d")
+        calls = await get_summary_calls_today(config.db_path, message.chat.id, date_str)
+        if calls >= config.summary_daily_limit:
+            await message.reply(
+                f"Limit summaries reached: maximum per day {config.summary_daily_limit} ",
+                allow_sending_without_reply=True,
+            )
+            return
+        await increment_summary_calls(config.db_path, message.chat.id, date_str)
         try:
             await _send_summary(
                 bot, config, message.chat.id,

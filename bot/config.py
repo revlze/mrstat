@@ -14,6 +14,7 @@ class Config:
     min_words: int
     retention_days: int
     summary_period_hours: int
+    summary_daily_limit: int
 
     @property
     def period_seconds(self) -> int:
@@ -32,6 +33,7 @@ class Config:
             min_words=int(os.getenv("MIN_WORDS", "10")),
             retention_days=int(os.getenv("RETENTION_DAYS", "3")),
             summary_period_hours=int(os.getenv("SUMMARY_PERIOD_HOURS", "24")),
+            summary_daily_limit=int(os.getenv("SUMMARY_DAILY_LIMIT", "3")),
         )
 
 
