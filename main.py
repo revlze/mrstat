@@ -4,6 +4,7 @@ import asyncio
 import logging
 
 from aiogram import Bot, Dispatcher
+from aiogram.enums import UpdateType
 from dotenv import load_dotenv
 
 from bot.config import Config
@@ -35,7 +36,10 @@ async def main() -> None:
 
     try:
         logging.info("polling started")
-        await dispatcher.start_polling(bot)
+        await dispatcher.start_polling(bot, allowed_updates=[
+            UpdateType.MESSAGE,
+            UpdateType.CHAT_MEMBER,
+        ])
     finally:
         scheduler.shutdown(wait=False)
         await bot.session.close()

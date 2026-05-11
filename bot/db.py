@@ -103,6 +103,16 @@ async def increment_summary_calls(db_path: str, chat_id: int, date_str: str) -> 
         await conn.commit()
 
 
+async def delete_user_messages(db_path: str, chat_id: int, user_id: int) -> int:
+    async with aiosqlite.connect(db_path) as conn:
+        cursor = await conn.execute(
+            "DELETE FROM messages WHERE chat_id = ? AND user_id = ?",
+            (chat_id, user_id),
+        )
+        await conn.commit()
+        return cursor.rowcount
+
+
 async def get_active_chat_ids(db_path: str, since_ts: int) -> list[int]:
     async with aiosqlite.connect(db_path) as conn:
         cursor = await conn.execute(

@@ -6,11 +6,11 @@ from zoneinfo import ZoneInfo
 
 from aiogram import Bot, F, Router
 from aiogram.filters import Command
-from aiogram.types import Message
+from aiogram.types import ChatMemberUpdated, Message
 
 from .analytics import aggregate_by_user, build_summary
 from .config import Config
-from .db import get_messages_for_period, get_summary_calls_today, increment_summary_calls, save_message
+from .db import delete_user_messages, get_messages_for_period, get_summary_calls_today, increment_summary_calls, save_message
 from .logging_sink import chat_ref, log_to_chat
 
 
@@ -82,6 +82,16 @@ def build_router(config: Config) -> Router:
             text=f"[фото]{caption}",
             ts=int(message.date.timestamp()),
         )
+
+    @router.chat_member(F.new_chat_member.status.in_({"kicked", "banned"}))
+    async def on_user_banned(event: ChatMemberUpdated, bot: Bot) -> None:
+        user = event.new_chat_member.user
+        deleted = await delete_user_messages(config.db_path, event.chat.id, user.id)
+        if deleted:
+            logger.info(
+                "Deleted %d messages of banned user %s (%d) in chat %d",
+                deleted, user.username or user.full_name, user.id, event.chat.id,
+            )
 
     return router
 
