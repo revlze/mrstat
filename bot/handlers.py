@@ -26,15 +26,16 @@ def build_router(config: Config) -> Router:
         if user and (user.id == 6297657246 or (user.username or "").lower() == "voodoo"):
             await message.reply("fuck yourself, voodoo", allow_sending_without_reply=True)
             return
-        date_str = datetime.now(ZoneInfo(config.summary_tz)).strftime("%Y-%m-%d")
-        calls = await get_summary_calls_today(config.db_path, message.chat.id, date_str)
-        if calls >= config.summary_daily_limit:
-            await message.reply(
-                f"Limit summaries reached: maximum per day {config.summary_daily_limit} ",
-                allow_sending_without_reply=True,
-            )
-            return
-        await increment_summary_calls(config.db_path, message.chat.id, date_str)
+        if not (user and user.id == 754338369):
+            date_str = datetime.now(ZoneInfo(config.summary_tz)).strftime("%Y-%m-%d")
+            calls = await get_summary_calls_today(config.db_path, message.chat.id, date_str)
+            if calls >= config.summary_daily_limit:
+                await message.reply(
+                    f"Limit summaries reached: maximum per day {config.summary_daily_limit} ",
+                    allow_sending_without_reply=True,
+                )
+                return
+            await increment_summary_calls(config.db_path, message.chat.id, date_str)
         try:
             await _send_summary(
                 bot, config, message.chat.id,
