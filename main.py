@@ -42,6 +42,7 @@ async def main() -> None:
         logging.info("polling started")
         await dispatcher.start_polling(bot, allowed_updates=[
             UpdateType.MESSAGE,
+            UpdateType.EDITED_MESSAGE,
             UpdateType.CHAT_MEMBER,
         ])
     finally:
