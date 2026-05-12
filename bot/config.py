@@ -9,6 +9,7 @@ class Config:
     openrouter_model: str
     gemini_api_key: str | None
     gemini_model: str
+    gemini_model_ask: str
     logs_chat_id: int
     summary_hour: int
     summary_tz: str
@@ -29,7 +30,8 @@ class Config:
             openrouter_api_key=_required("OPENROUTER_API_KEY"),
             openrouter_model=os.getenv("OPENROUTER_MODEL", "deepseek/deepseek-chat"),
             gemini_api_key=os.getenv("GEMINI_API_KEY"),
-            gemini_model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+            gemini_model=os.getenv("GEMINI_MODEL_SUMMARY", "gemini-3-flash-preview"),
+            gemini_model_ask=os.getenv("GEMINI_MODEL_ASK", "gemini-2.5-pro"),
             logs_chat_id=int(_required("LOGS_CHAT_ID")),
             summary_hour=int(os.getenv("SUMMARY_HOUR", "10")),
             summary_tz=os.getenv("SUMMARY_TZ", "Europe/Moscow"),

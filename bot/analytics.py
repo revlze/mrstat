@@ -61,6 +61,30 @@ async def build_summary(
     return _format_telegram(data)
 
 
+async def ask_question(
+    question: str,
+    *,
+    api_key: str,
+    model: str,
+    gemini_api_key: str | None = None,
+    gemini_model_ask: str | None = None,
+) -> str:
+    messages = [{"role": "user", "content": question}]
+    if gemini_api_key:
+        return await gemini_client.chat_completion(
+            api_key=gemini_api_key,
+            model=gemini_model_ask or "gemini-2.5-pro",
+            messages=messages,
+            grounding=True,
+        )
+    response = await openrouter_chat_completion(
+        api_key=api_key,
+        model=model,
+        messages=messages,
+    )
+    return response["choices"][0]["message"]["content"]
+
+
 def _display_name(message: StoredMessage) -> str:
     if message.username:
         return f"@{message.username}"

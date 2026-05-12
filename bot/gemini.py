@@ -3,11 +3,11 @@ import logging
 
 from google import genai
 from google.genai.errors import ServerError
-from google.genai.types import GenerateContentConfig
+from google.genai.types import GenerateContentConfig, GoogleSearch, Tool
 
 logger = logging.getLogger(__name__)
 
-_RETRY_DELAYS = [5, 15, 30]  # seconds between attempts
+_RETRY_DELAYS = [30, 60, 120]  # seconds between attempts
 
 
 async def chat_completion(
@@ -16,6 +16,7 @@ async def chat_completion(
     model: str,
     messages: list[dict],
     response_format: dict | None = None,
+    grounding: bool = False,
 ) -> str:
     client = genai.Client(api_key=api_key)
 
@@ -30,10 +31,15 @@ async def chat_completion(
     config = GenerateContentConfig(
         system_instruction=system_instruction,
         response_mime_type=(
-            "application/json"
-            if response_format and response_format.get("type") == "json_object"
-            else None
+            None
+            if grounding
+            else (
+                "application/json"
+                if response_format and response_format.get("type") == "json_object"
+                else None
+            )
         ),
+        tools=[Tool(google_search=GoogleSearch())] if grounding else None,
     )
 
     last_exc: Exception | None = None

@@ -10,7 +10,7 @@ from aiogram.enums import ParseMode
 from aiogram.filters import Command
 from aiogram.types import ChatMemberUpdated, Message
 
-from .analytics import aggregate_by_user, build_summary
+from .analytics import aggregate_by_user, ask_question, build_summary
 from .config import Config
 from .db import delete_user_messages, get_last_summary, get_messages_for_period, get_summary_calls_today, increment_summary_calls, save_last_summary, save_message, update_message
 from .logging_sink import chat_ref, log_to_chat
@@ -29,6 +29,31 @@ def _get_lock(chat_id: int) -> asyncio.Lock:
 
 def build_router(config: Config) -> Router:
     router = Router(name="mr-stat")
+
+    @router.message(Command("ask"))
+    async def cmd_ask(message: Message, bot: Bot) -> None:
+        text = message.text or ""
+        parts = text.split(maxsplit=1)
+        question = parts[1].strip() if len(parts) > 1 else ""
+        if not question:
+            await message.reply("Usage: /ask <question>", allow_sending_without_reply=True)
+            return
+        try:
+            answer = await ask_question(
+                question,
+                api_key=config.openrouter_api_key,
+                model=config.openrouter_model,
+                gemini_api_key=config.gemini_api_key,
+                gemini_model_ask=config.gemini_model_ask,
+            )
+        except Exception:
+            tb = traceback.format_exc()
+            await log_to_chat(bot, config.logs_chat_id, f"/ask failed:\n{tb}", level=logging.ERROR)
+            await message.reply("Failed to get an answer.", allow_sending_without_reply=True)
+            return
+        await message.reply(answer, allow_sending_without_reply=True)
+
+
 
     @router.message(Command("summary"))
     async def cmd_summary(message: Message, bot: Bot) -> None:
