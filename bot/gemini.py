@@ -7,7 +7,8 @@ from google.genai.types import GenerateContentConfig, GoogleSearch, Tool
 
 logger = logging.getLogger(__name__)
 
-_RETRY_DELAYS = [30, 60, 120]  # seconds between attempts
+_RETRY_DELAYS = [15, 30, 60]  # seconds between attempts
+_RETRYABLE_STATUSES = ("500", "503", "504", "429")
 
 
 async def chat_completion(
@@ -45,7 +46,10 @@ async def chat_completion(
     last_exc: Exception | None = None
     for attempt, delay in enumerate([0] + _RETRY_DELAYS, 1):
         if delay:
-            logger.warning("Gemini 503, retry %d/%d in %ds", attempt, len(_RETRY_DELAYS) + 1, delay)
+            logger.warning(
+                "Gemini transient error, retry %d/%d in %ds: %s",
+                attempt, len(_RETRY_DELAYS) + 1, delay, last_exc,
+            )
             await asyncio.sleep(delay)
         try:
             response = await client.aio.models.generate_content(
@@ -55,7 +59,7 @@ async def chat_completion(
             )
             return response.text
         except ServerError as exc:
-            if "503" not in str(exc):
+            if not any(code in str(exc) for code in _RETRYABLE_STATUSES):
                 raise
             last_exc = exc
     raise last_exc
