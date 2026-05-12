@@ -27,6 +27,7 @@ def aggregate_by_user(
 
 
 async def build_summary(
+    messages: list[StoredMessage],
     per_user: dict[int, dict],
     *,
     api_key: str,
@@ -34,7 +35,7 @@ async def build_summary(
     gemini_api_key: str | None = None,
     gemini_model: str | None = None,
 ) -> str:
-    user_prompt = build_user_prompt(per_user)
+    user_prompt = build_user_prompt(messages, per_user)
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": user_prompt},

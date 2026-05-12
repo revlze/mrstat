@@ -184,6 +184,7 @@ async def _send_summary(
         return False
 
     text = await build_summary(
+        messages,
         per_user,
         api_key=config.openrouter_api_key,
         model=config.openrouter_model,
