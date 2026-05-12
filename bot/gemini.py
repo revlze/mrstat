@@ -49,7 +49,7 @@ async def chat_completion(
             )
             return response.text
         except ServerError as exc:
-            if exc.status_code != 503:
+            if "503" not in str(exc):
                 raise
             last_exc = exc
     raise last_exc
