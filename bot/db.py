@@ -21,6 +21,11 @@ CREATE TABLE IF NOT EXISTS summary_calls (
     count    INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (chat_id, date_str)
 );
+CREATE TABLE IF NOT EXISTS last_summary (
+    chat_id    INTEGER PRIMARY KEY,
+    message_id INTEGER NOT NULL,
+    ts         INTEGER NOT NULL
+);
 """
 
 
@@ -121,6 +126,25 @@ async def delete_user_messages(db_path: str, chat_id: int, user_id: int) -> int:
         )
         await conn.commit()
         return cursor.rowcount
+
+
+async def save_last_summary(db_path: str, chat_id: int, message_id: int, ts: int) -> None:
+    async with aiosqlite.connect(db_path) as conn:
+        await conn.execute(
+            "INSERT INTO last_summary (chat_id, message_id, ts) VALUES (?, ?, ?) "
+            "ON CONFLICT(chat_id) DO UPDATE SET message_id = excluded.message_id, ts = excluded.ts",
+            (chat_id, message_id, ts),
+        )
+        await conn.commit()
+
+
+async def get_last_summary(db_path: str, chat_id: int) -> int | None:
+    async with aiosqlite.connect(db_path) as conn:
+        cursor = await conn.execute(
+            "SELECT message_id FROM last_summary WHERE chat_id = ?", (chat_id,)
+        )
+        row = await cursor.fetchone()
+    return row[0] if row else None
 
 
 async def get_active_chat_ids(db_path: str, since_ts: int) -> list[int]:

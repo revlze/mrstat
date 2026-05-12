@@ -11,7 +11,7 @@ from aiogram.types import ChatMemberUpdated, Message
 
 from .analytics import aggregate_by_user, build_summary
 from .config import Config
-from .db import delete_user_messages, get_messages_for_period, get_summary_calls_today, increment_summary_calls, save_message, update_message
+from .db import delete_user_messages, get_last_summary, get_messages_for_period, get_summary_calls_today, increment_summary_calls, save_last_summary, save_message, update_message
 from .logging_sink import chat_ref, log_to_chat
 
 
@@ -32,8 +32,8 @@ def build_router(config: Config) -> Router:
     @router.message(Command("summary"))
     async def cmd_summary(message: Message, bot: Bot) -> None:
         user = message.from_user
-        if user and (user.id == 6297657246 or (user.username or "").lower() == "voodoo"):
-            await message.reply("fuck yourself, voodoo", allow_sending_without_reply=True)
+        if user and (user.id == 6297657246): # voodoo
+            await message.reply(f"fuck and kill yourself, {message.from_user.full_name}", allow_sending_without_reply=True)
             return
         lock = _get_lock(message.chat.id)
         if lock.locked():
@@ -43,8 +43,17 @@ def build_router(config: Config) -> Router:
             date_str = datetime.now(ZoneInfo(config.summary_tz)).strftime("%Y-%m-%d")
             calls = await get_summary_calls_today(config.db_path, message.chat.id, date_str)
             if calls >= config.summary_daily_limit:
+                last_msg_id = await get_last_summary(config.db_path, message.chat.id)
+                link_part = ""
+                if last_msg_id:
+                    if message.chat.username:
+                        link = f"https://t.me/{message.chat.username}/{last_msg_id}"
+                    else:
+                        numeric = str(message.chat.id).lstrip("-").removeprefix("100")
+                        link = f"https://t.me/c/{numeric}/{last_msg_id}"
+                    link_part = f"\n{link}"
                 await message.reply(
-                    f"Limit summaries reached: maximum per day {config.summary_daily_limit} ",
+                    f"Limit summaries reached: maximum per day {config.summary_daily_limit}. Last summary: {link_part}",
                     allow_sending_without_reply=True,
                 )
                 return
@@ -182,8 +191,9 @@ async def _send_summary(
         gemini_model=config.gemini_model,
     )
     if reply_to is not None:
-        await reply_to.reply(text, allow_sending_without_reply=True)
+        sent = await reply_to.reply(text, allow_sending_without_reply=True)
     else:
-        await bot.send_message(chat_id, text)
+        sent = await bot.send_message(chat_id, text)
+    await save_last_summary(config.db_path, chat_id, sent.message_id, int(time.time()))
     await log_to_chat(bot, config.logs_chat_id, f"summary in {chat_ref(chat_id, chat_username)}:\n{text}")
     return True
