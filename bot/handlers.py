@@ -51,7 +51,7 @@ def build_router(config: Config) -> Router:
             await log_to_chat(bot, config.logs_chat_id, f"/ask failed:\n{tb}", level=logging.ERROR)
             await message.reply("Failed to get an answer.", allow_sending_without_reply=True)
             return
-        await message.reply(answer, allow_sending_without_reply=True)
+        await message.reply(answer, allow_sending_without_reply=True, parse_mode=ParseMode.MARKDOWN_V2)
 
 
 

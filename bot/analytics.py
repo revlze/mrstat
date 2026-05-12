@@ -1,6 +1,8 @@
 import json
 import logging
 
+import telegramify_markdown
+
 from aiogram import html
 
 from .db import StoredMessage
@@ -71,18 +73,20 @@ async def ask_question(
 ) -> str:
     messages = [{"role": "user", "content": question}]
     if gemini_api_key:
-        return await gemini_client.chat_completion(
+        content = await gemini_client.chat_completion(
             api_key=gemini_api_key,
             model=gemini_model_ask or "gemini-2.5-pro",
             messages=messages,
             grounding=True,
         )
-    response = await openrouter_chat_completion(
-        api_key=api_key,
-        model=model,
-        messages=messages,
-    )
-    return response["choices"][0]["message"]["content"]
+    else:
+        response = await openrouter_chat_completion(
+            api_key=api_key,
+            model=model,
+            messages=messages,
+        )
+        content = response["choices"][0]["message"]["content"]
+    return _as_expandable_quote(telegramify_markdown.convert(content))
 
 
 def _display_name(message: StoredMessage) -> str:
@@ -114,3 +118,8 @@ def _format_telegram(data: dict) -> str:
 
     parts.append("\n#summary")
     return "\n\n".join(parts)
+
+
+def _as_expandable_quote(text: str) -> str:
+    lines = text.rstrip("\n").split("\n")
+    return "\n".join(f">{line}" for line in lines) + "||"
