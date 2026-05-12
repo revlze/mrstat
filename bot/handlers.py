@@ -39,7 +39,7 @@ def build_router(config: Config) -> Router:
             await message.reply("Usage: /ask <question>", allow_sending_without_reply=True)
             return
         try:
-            answer = await ask_question(
+            answer_text, answer_entities = await ask_question(
                 question,
                 api_key=config.openrouter_api_key,
                 model=config.openrouter_model,
@@ -51,7 +51,7 @@ def build_router(config: Config) -> Router:
             await log_to_chat(bot, config.logs_chat_id, f"/ask failed:\n{tb}", level=logging.ERROR)
             await message.reply("Failed to get an answer.", allow_sending_without_reply=True)
             return
-        await message.reply(answer, allow_sending_without_reply=True, parse_mode=ParseMode.MARKDOWN_V2)
+        await message.reply(answer_text, entities=answer_entities, allow_sending_without_reply=True)
 
 
 

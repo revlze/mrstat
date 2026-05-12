@@ -4,6 +4,7 @@ import logging
 import telegramify_markdown
 
 from aiogram import html
+from aiogram.types import MessageEntity as TgEntity
 
 from .db import StoredMessage
 from . import gemini as gemini_client
@@ -86,7 +87,8 @@ async def ask_question(
             messages=messages,
         )
         content = response["choices"][0]["message"]["content"]
-    return _as_expandable_quote(telegramify_markdown.convert(content))
+    text, entities = telegramify_markdown.convert(content)
+    return _as_expandable_quote(text, entities)
 
 
 def _display_name(message: StoredMessage) -> str:
@@ -120,6 +122,7 @@ def _format_telegram(data: dict) -> str:
     return "\n\n".join(parts)
 
 
-def _as_expandable_quote(text: str) -> str:
-    lines = text.rstrip("\n").split("\n")
-    return "\n".join(f">{line}" for line in lines) + "||"
+def _as_expandable_quote(text: str, entities: list) -> tuple[str, list[TgEntity]]:
+    aio_entities = [TgEntity(**e.to_dict()) for e in entities]
+    quote = TgEntity(type="expandable_blockquote", offset=0, length=len(text))
+    return text, [quote] + aio_entities
