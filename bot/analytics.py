@@ -81,4 +81,5 @@ def _format_telegram(data: dict) -> str:
         comment = (user.get("comment") or "").strip()
         suffix = f" · {comment}" if comment else ""
         lines.append(f"{index}. {name} — {iq}{suffix}")
+    lines.append("\n#summary")
     return "\n".join(lines)
