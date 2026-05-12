@@ -123,7 +123,7 @@ def _format_telegram(data: dict) -> str:
 
 
 def _as_expandable_quote(text: str, entities: list) -> tuple[str, list[TgEntity]]:
-    aio_entities = [TgEntity(**e.to_dict()) for e in entities]
+    aio_entities = [TgEntity(**e.to_dict()) for e in entities if e.type != "pre"]
     utf16_len = len(text.encode("utf-16-le")) // 2
     quote = TgEntity(type="expandable_blockquote", offset=0, length=utf16_len)
     return text, [quote] + aio_entities
