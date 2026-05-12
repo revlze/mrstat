@@ -1,5 +1,13 @@
+import asyncio
+import logging
+
 from google import genai
+from google.genai.errors import ServerError
 from google.genai.types import GenerateContentConfig
+
+logger = logging.getLogger(__name__)
+
+_RETRY_DELAYS = [5, 15, 30]  # seconds between attempts
 
 
 async def chat_completion(
@@ -28,9 +36,20 @@ async def chat_completion(
         ),
     )
 
-    response = await client.aio.models.generate_content(
-        model=model,
-        contents=contents,
-        config=config,
-    )
-    return response.text
+    last_exc: Exception | None = None
+    for attempt, delay in enumerate([0] + _RETRY_DELAYS, 1):
+        if delay:
+            logger.warning("Gemini 503, retry %d/%d in %ds", attempt, len(_RETRY_DELAYS) + 1, delay)
+            await asyncio.sleep(delay)
+        try:
+            response = await client.aio.models.generate_content(
+                model=model,
+                contents=contents,
+                config=config,
+            )
+            return response.text
+        except ServerError as exc:
+            if exc.status_code != 503:
+                raise
+            last_exc = exc
+    raise last_exc
