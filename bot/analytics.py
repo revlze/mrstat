@@ -6,7 +6,9 @@ import telegramify_markdown
 from aiogram import html
 from aiogram.types import MessageEntity as TgEntity
 
-from .db import StoredMessage
+import time
+
+from .db import StoredMessage, get_ask_history, append_ask_history
 from . import gemini as gemini_client
 from .openrouter import chat_completion as openrouter_chat_completion
 from .prompts import SYSTEM_PROMPT, build_user_prompt
@@ -67,12 +69,17 @@ async def build_summary(
 async def ask_question(
     question: str,
     *,
+    chat_id: int,
+    user_id: int,
+    db_path: str,
     api_key: str,
     model: str,
     gemini_api_key: str | None = None,
     gemini_model_ask: str | None = None,
-) -> str:
-    messages = [{"role": "user", "content": question}]
+) -> tuple[str, list]:
+    now = int(time.time())
+    await append_ask_history(db_path, chat_id, user_id, "user", question, now)
+    messages = await get_ask_history(db_path, chat_id, user_id)
     if gemini_api_key:
         content = await gemini_client.chat_completion(
             api_key=gemini_api_key,
@@ -87,6 +94,7 @@ async def ask_question(
             messages=messages,
         )
         content = response["choices"][0]["message"]["content"]
+    await append_ask_history(db_path, chat_id, user_id, "assistant", content, int(time.time()))
     text, entities = telegramify_markdown.convert(content)
     return _as_expandable_quote(text, entities)
 

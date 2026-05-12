@@ -41,6 +41,9 @@ def build_router(config: Config) -> Router:
         try:
             answer_text, answer_entities = await ask_question(
                 question,
+                chat_id=message.chat.id,
+                user_id=message.from_user.id if message.from_user else 0,
+                db_path=config.db_path,
                 api_key=config.openrouter_api_key,
                 model=config.openrouter_model,
                 gemini_api_key=config.gemini_api_key,
