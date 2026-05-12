@@ -26,6 +26,15 @@ CREATE TABLE IF NOT EXISTS last_summary (
     message_id INTEGER NOT NULL,
     ts         INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS ask_history (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    role    TEXT    NOT NULL,
+    content TEXT    NOT NULL,
+    ts      INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ask_history_chat_user ON ask_history(chat_id, user_id, id);
 """
 
 
@@ -145,6 +154,26 @@ async def get_last_summary(db_path: str, chat_id: int) -> int | None:
         )
         row = await cursor.fetchone()
     return row[0] if row else None
+
+
+async def get_ask_history(db_path: str, chat_id: int, user_id: int, limit: int = 20) -> list[dict]:
+    async with aiosqlite.connect(db_path) as conn:
+        cursor = await conn.execute(
+            "SELECT role, content FROM ask_history "
+            "WHERE chat_id = ? AND user_id = ? ORDER BY id DESC LIMIT ?",
+            (chat_id, user_id, limit),
+        )
+        rows = await cursor.fetchall()
+    return [{"role": row[0], "content": row[1]} for row in reversed(rows)]
+
+
+async def append_ask_history(db_path: str, chat_id: int, user_id: int, role: str, content: str, ts: int) -> None:
+    async with aiosqlite.connect(db_path) as conn:
+        await conn.execute(
+            "INSERT INTO ask_history (chat_id, user_id, role, content, ts) VALUES (?, ?, ?, ?, ?)",
+            (chat_id, user_id, role, content, ts),
+        )
+        await conn.commit()
 
 
 async def get_active_chat_ids(db_path: str, since_ts: int) -> list[int]:
