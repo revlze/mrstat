@@ -4,6 +4,7 @@ import traceback
 from zoneinfo import ZoneInfo
 
 from aiogram import Bot
+from aiogram.enums import ParseMode
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
@@ -52,7 +53,7 @@ async def run_summary_for_all_chats(bot: Bot, config: Config) -> None:
                 gemini_api_key=config.gemini_api_key,
                 gemini_model=config.gemini_model,
             )
-            await bot.send_message(chat_id, text)
+            await bot.send_message(chat_id, text, parse_mode=ParseMode.HTML)
             await log_to_chat(
                 bot, config.logs_chat_id, f"daily summary in {chat_ref(chat_id, chat_username)}:\n{text}"
             )

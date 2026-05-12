@@ -6,6 +6,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from aiogram import Bot, F, Router
+from aiogram.enums import ParseMode
 from aiogram.filters import Command
 from aiogram.types import ChatMemberUpdated, Message
 
@@ -192,9 +193,9 @@ async def _send_summary(
         gemini_model=config.gemini_model,
     )
     if reply_to is not None:
-        sent = await reply_to.reply(text, allow_sending_without_reply=True)
+        sent = await reply_to.reply(text, allow_sending_without_reply=True, parse_mode=ParseMode.HTML)
     else:
-        sent = await bot.send_message(chat_id, text)
+        sent = await bot.send_message(chat_id, text, parse_mode=ParseMode.HTML)
     await save_last_summary(config.db_path, chat_id, sent.message_id, int(time.time()))
     await log_to_chat(bot, config.logs_chat_id, f"summary in {chat_ref(chat_id, chat_username)}:\n{text}")
     return True

@@ -1,6 +1,8 @@
 import json
 import logging
 
+from aiogram import html
+
 from .db import StoredMessage
 from . import gemini as gemini_client
 from .openrouter import chat_completion as openrouter_chat_completion
@@ -72,15 +74,19 @@ def _format_telegram(data: dict) -> str:
     users = data.get("users") or []
     users_sorted = sorted(users, key=lambda u: u.get("iq", 0), reverse=True)
 
-    lines = ["📊 Саммари за сутки", ""]
+    parts = ["📊 Саммари за сутки"]
+
     if summary_text:
-        lines += [summary_text, ""]
-    lines.append("🧠 IQ-рейтинг:")
+        parts.append(html.expandable_blockquote(summary_text))
+
+    iq_lines = ["🧠 IQ-рейтинг:"]
     for index, user in enumerate(users_sorted, 1):
-        name = (user.get("name") or "???").replace("@", "@​")
+        name = html.quote((user.get("name") or "???").replace("@", "@​"))
         iq = user.get("iq", "???")
         comment = (user.get("comment") or "").strip()
-        suffix = f" · {comment}" if comment else ""
-        lines.append(f"{index}. {name} — {iq}{suffix}")
-    lines.append("\n#summary")
-    return "\n".join(lines)
+        suffix = f" · {html.quote(comment)}" if comment else ""
+        iq_lines.append(f"{index}. {name} — {iq}{suffix}")
+    parts.append(html.expandable_blockquote("\n".join(iq_lines)))
+
+    parts.append("\n#summary")
+    return "\n\n".join(parts)
