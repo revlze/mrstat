@@ -18,6 +18,10 @@ class Config:
     retention_days: int
     summary_period_hours: int
     summary_daily_limit: int
+    allowed_chat_ids: frozenset[int]
+    allowed_user_ids: frozenset[int]
+    blocked_user_ids: frozenset[int]
+    sudo_user_ids: frozenset[int]
 
     @property
     def period_seconds(self) -> int:
@@ -40,6 +44,10 @@ class Config:
             retention_days=int(os.getenv("RETENTION_DAYS", "3")),
             summary_period_hours=int(os.getenv("SUMMARY_PERIOD_HOURS", "24")),
             summary_daily_limit=int(os.getenv("SUMMARY_DAILY_LIMIT", "3")),
+            allowed_chat_ids=_parse_int_set(os.getenv("ALLOWED_CHAT_IDS", "")),
+            allowed_user_ids=_parse_int_set(os.getenv("ALLOWED_USER_IDS", "")),
+            blocked_user_ids=_parse_int_set(os.getenv("BLOCKED_USER_IDS", "")),
+            sudo_user_ids=_parse_int_set(os.getenv("SUDO_USER_IDS", "")),
         )
 
 
@@ -48,3 +56,7 @@ def _required(name: str) -> str:
     if not value:
         raise RuntimeError(f"Missing required env var: {name}")
     return value
+
+
+def _parse_int_set(raw: str) -> frozenset[int]:
+    return frozenset(int(p) for p in raw.replace(";", ",").split(",") if p.strip())

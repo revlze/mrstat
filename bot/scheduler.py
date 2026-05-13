@@ -20,6 +20,8 @@ logger = logging.getLogger(__name__) # 24 hours
 async def run_summary_for_all_chats(bot: Bot, config: Config) -> None:
     since_ts = int(time.time()) - config.period_seconds
     chat_ids = await get_active_chat_ids(config.db_path, since_ts)
+    if config.allowed_chat_ids:
+        chat_ids = [c for c in chat_ids if c in config.allowed_chat_ids]
     logger.info("daily summary tick: %d active chat(s)", len(chat_ids))
 
     bot_id = (await bot.get_me()).id

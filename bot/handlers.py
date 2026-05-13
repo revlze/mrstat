@@ -3,13 +3,15 @@ import logging
 import random
 import time
 import traceback
+from collections.abc import Awaitable, Callable
 from datetime import datetime
+from typing import Any
 from zoneinfo import ZoneInfo
 
-from aiogram import Bot, F, Router
+from aiogram import BaseMiddleware, Bot, F, Router
 from aiogram.enums import ParseMode
 from aiogram.filters import Command
-from aiogram.types import ChatMemberUpdated, Message
+from aiogram.types import ChatMemberUpdated, Message, TelegramObject
 
 from .analytics import aggregate_by_user, ask_question, build_summary
 from .config import Config
@@ -18,6 +20,47 @@ from .logging_sink import chat_ref, log_to_chat
 
 
 logger = logging.getLogger(__name__)
+
+
+class AllowlistMiddleware(BaseMiddleware):
+    def __init__(
+        self,
+        allowed_chat_ids: frozenset[int],
+        allowed_user_ids: frozenset[int],
+        blocked_user_ids: frozenset[int],
+        sudo_user_ids: frozenset[int],
+    ) -> None:
+        self.allowed_chat_ids = allowed_chat_ids
+        self.allowed_user_ids = allowed_user_ids
+        self.blocked_user_ids = blocked_user_ids
+        self.sudo_user_ids = sudo_user_ids
+
+    async def __call__(
+        self,
+        handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
+        event: TelegramObject,
+        data: dict[str, Any],
+    ) -> Any:
+        chat = getattr(event, "chat", None)
+        user = getattr(event, "from_user", None)
+        if chat is None:
+            return None
+        if user is not None and user.id in self.blocked_user_ids:
+            logger.debug("blocked event from blocklisted user %d", user.id)
+            return None
+        is_sudo = user is not None and user.id in self.sudo_user_ids
+        if not is_sudo:
+            if chat.type in ("group", "supergroup"):
+                if self.allowed_chat_ids and chat.id not in self.allowed_chat_ids:
+                    logger.debug("blocked event in non-allowed chat %d", chat.id)
+                    return None
+            elif chat.type == "private":
+                if self.allowed_user_ids and (user is None or user.id not in self.allowed_user_ids):
+                    logger.debug("blocked private event from user %s", user.id if user else None)
+                    return None
+            else:
+                return None
+        return await handler(event, data)
 
 _summary_locks: dict[int, asyncio.Lock] = {}
 
@@ -44,6 +87,15 @@ def _get_lock(chat_id: int) -> asyncio.Lock:
 
 def build_router(config: Config) -> Router:
     router = Router(name="mr-stat")
+    allowlist = AllowlistMiddleware(
+        config.allowed_chat_ids,
+        config.allowed_user_ids,
+        config.blocked_user_ids,
+        config.sudo_user_ids,
+    )
+    router.message.middleware(allowlist)
+    router.edited_message.middleware(allowlist)
+    router.chat_member.middleware(allowlist)
 
     @router.message(Command("ask"))
     async def cmd_ask(message: Message, bot: Bot) -> None:
@@ -77,14 +129,11 @@ def build_router(config: Config) -> Router:
     @router.message(Command("summary"))
     async def cmd_summary(message: Message, bot: Bot) -> None:
         user = message.from_user
-        if user and (user.id == 6297657246): # voodoo
-            await message.reply(f"fuck and kill yourself, {message.from_user.full_name}", allow_sending_without_reply=True)
-            return
         lock = _get_lock(message.chat.id)
         if lock.locked():
             await message.reply("Summary is already being generated, wait.", allow_sending_without_reply=True)
             return
-        if not (user and user.id == 754338369):
+        if not (user and user.id in config.sudo_user_ids):
             date_str = datetime.now(ZoneInfo(config.summary_tz)).strftime("%Y-%m-%d")
             calls = await get_summary_calls_today(config.db_path, message.chat.id, date_str)
             if calls >= config.summary_daily_limit:
