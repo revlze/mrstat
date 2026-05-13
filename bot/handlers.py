@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import random
 import time
 import traceback
 from datetime import datetime
@@ -20,6 +21,20 @@ logger = logging.getLogger(__name__)
 
 _summary_locks: dict[int, asyncio.Lock] = {}
 
+_THINKING_PLACEHOLDERS = [
+    "thinking…",
+    "smoking weed…",
+    "rolls…",
+    "consulting the oracle…",
+    "asking your mom…",
+    "googling really hard…",
+    "buffering…",
+    "vibing…",
+    "brewing some thoughts…",
+    "loading neurons…",
+    "warming up the hamsters…",
+]
+
 
 def _get_lock(chat_id: int) -> asyncio.Lock:
     if chat_id not in _summary_locks:
@@ -38,6 +53,7 @@ def build_router(config: Config) -> Router:
         if not question:
             await message.reply("Usage: /ask <question>", allow_sending_without_reply=True)
             return
+        placeholder = await message.reply(random.choice(_THINKING_PLACEHOLDERS), allow_sending_without_reply=True)
         try:
             answer_text, answer_entities = await ask_question(
                 question,
@@ -52,9 +68,9 @@ def build_router(config: Config) -> Router:
         except Exception:
             tb = traceback.format_exc()
             await log_to_chat(bot, config.logs_chat_id, f"/ask failed:\n{tb}", level=logging.ERROR)
-            await message.reply("Failed to get an answer.", allow_sending_without_reply=True)
+            await placeholder.edit_text("Failed to get an answer.")
             return
-        await message.reply(answer_text, entities=answer_entities, allow_sending_without_reply=True)
+        await placeholder.edit_text(answer_text, entities=answer_entities)
 
 
 
