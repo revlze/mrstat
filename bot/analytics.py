@@ -11,7 +11,7 @@ import time
 from .db import StoredMessage, get_ask_history, append_ask_history
 from . import gemini as gemini_client
 from .openrouter import chat_completion as openrouter_chat_completion
-from .prompts import SYSTEM_PROMPT, build_user_prompt
+from .prompts import ASK_SYSTEM_PROMPT, SYSTEM_PROMPT, build_user_prompt
 
 
 logger = logging.getLogger(__name__)
@@ -79,7 +79,8 @@ async def ask_question(
 ) -> tuple[str, list]:
     now = int(time.time())
     await append_ask_history(db_path, chat_id, user_id, "user", question, now)
-    messages = await get_ask_history(db_path, chat_id, user_id)
+    history = await get_ask_history(db_path, chat_id, user_id)
+    messages = [{"role": "system", "content": ASK_SYSTEM_PROMPT}, *history]
     if gemini_api_key:
         content = await gemini_client.chat_completion(
             api_key=gemini_api_key,

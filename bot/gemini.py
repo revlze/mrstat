@@ -3,7 +3,7 @@ import logging
 
 from google import genai
 from google.genai.errors import ServerError
-from google.genai.types import GenerateContentConfig, GoogleSearch, Tool
+from google.genai.types import Content, GenerateContentConfig, GoogleSearch, Part, Tool
 
 logger = logging.getLogger(__name__)
 
@@ -22,12 +22,13 @@ async def chat_completion(
     client = genai.Client(api_key=api_key)
 
     system_instruction = None
-    contents = []
+    contents: list[Content] = []
     for msg in messages:
         if msg["role"] == "system":
             system_instruction = msg["content"]
-        else:
-            contents.append(msg["content"])
+            continue
+        role = "model" if msg["role"] == "assistant" else "user"
+        contents.append(Content(role=role, parts=[Part(text=msg["content"])]))
 
     config = GenerateContentConfig(
         system_instruction=system_instruction,
