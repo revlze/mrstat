@@ -59,4 +59,5 @@ def _required(name: str) -> str:
 
 
 def _parse_int_set(raw: str) -> frozenset[int]:
+    raw = raw.split("#", 1)[0]
     return frozenset(int(p) for p in raw.replace(";", ",").split(",") if p.strip())
