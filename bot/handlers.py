@@ -152,11 +152,12 @@ def build_router(config: Config) -> Router:
                 )
                 return
             await increment_summary_calls(config.db_path, message.chat.id, date_str)
+        placeholder = await message.reply("Generating summary...", allow_sending_without_reply=True)
         async with lock:
             try:
                 await _send_summary(
                     bot, config, message.chat.id,
-                    reply_to=message, chat_username=message.chat.username,
+                    placeholder=placeholder, chat_username=message.chat.username,
                 )
             except Exception:
                 tb = traceback.format_exc()
@@ -166,7 +167,7 @@ def build_router(config: Config) -> Router:
                     f"/summary failed in {chat_ref(message.chat.id, message.chat.username)}:\n{tb}",
                     level=logging.ERROR,
                 )
-                await message.reply("Summary failed. Fuck you. 🤗", allow_sending_without_reply=True)
+                await placeholder.edit_text("Summary failed. Fuck you. 🤗")
 
     @router.message(F.chat.type.in_({"group", "supergroup"}), F.text)
     async def on_text(message: Message) -> None:
@@ -261,7 +262,7 @@ async def _send_summary(
     config: Config,
     chat_id: int,
     *,
-    reply_to: Message | None = None,
+    placeholder: Message | None = None,
     chat_username: str | None = None,
 ) -> bool:
     """Build and deliver a summary for `chat_id`. Returns True if a summary was sent."""
@@ -269,11 +270,10 @@ async def _send_summary(
     messages = await get_messages_for_period(config.db_path, chat_id, since_ts)
     per_user = aggregate_by_user(messages, config.min_words)
     if not per_user:
-        if reply_to is not None:
-            await reply_to.reply(
+        if placeholder is not None:
+            await placeholder.edit_text(
                 "Insufficient data for the last 24 hours "
                 f"(need at least {config.min_words} words from the user).",
-                allow_sending_without_reply=True,
             )
         return False
 
@@ -285,8 +285,8 @@ async def _send_summary(
         gemini_api_key=config.gemini_api_key,
         gemini_model=config.gemini_model,
     )
-    if reply_to is not None:
-        sent = await reply_to.reply(text, allow_sending_without_reply=True, parse_mode=ParseMode.HTML)
+    if placeholder is not None:
+        sent = await placeholder.edit_text(text, parse_mode=ParseMode.HTML)
     else:
         sent = await bot.send_message(chat_id, text, parse_mode=ParseMode.HTML)
     await save_last_summary(config.db_path, chat_id, sent.message_id, int(time.time()))
