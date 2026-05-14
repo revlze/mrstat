@@ -87,7 +87,7 @@ async def ask_question(
     if gemini_api_key:
         content = await gemini_client.chat_completion(
             api_key=gemini_api_key,
-            model=gemini_model_ask or "gemini-2.5-pro",
+            model=gemini_model_ask or "gemma-4-31b-it",
             messages=messages,
             grounding=True,
         )
