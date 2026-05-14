@@ -58,7 +58,15 @@ async def chat_completion(
                 contents=contents,
                 config=config,
             )
-            return response.text
+            text = response.text
+            if not text:
+                finish_reason = None
+                try:
+                    finish_reason = response.candidates[0].finish_reason
+                except (AttributeError, IndexError, TypeError):
+                    pass
+                raise RuntimeError(f"Gemini returned empty response (finish_reason={finish_reason})")
+            return text
         except ServerError as exc:
             if not any(code in str(exc) for code in _RETRYABLE_STATUSES):
                 raise

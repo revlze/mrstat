@@ -78,10 +78,12 @@ async def ask_question(
     gemini_api_key: str | None = None,
     gemini_model_ask: str | None = None,
 ) -> tuple[str, list]:
-    now = int(time.time())
-    await append_ask_history(db_path, chat_id, user_id, "user", question, now)
     history = await get_ask_history(db_path, chat_id, user_id)
-    messages = [{"role": "system", "content": ASK_SYSTEM_PROMPT}, *history]
+    messages = [
+        {"role": "system", "content": ASK_SYSTEM_PROMPT},
+        *history,
+        {"role": "user", "content": question},
+    ]
     if gemini_api_key:
         content = await gemini_client.chat_completion(
             api_key=gemini_api_key,
@@ -96,7 +98,11 @@ async def ask_question(
             messages=messages,
         )
         content = response["choices"][0]["message"]["content"]
-    await append_ask_history(db_path, chat_id, user_id, "assistant", content, int(time.time()))
+    if not content or not content.strip():
+        raise RuntimeError("AI returned empty response")
+    now = int(time.time())
+    await append_ask_history(db_path, chat_id, user_id, "user", question, now)
+    await append_ask_history(db_path, chat_id, user_id, "assistant", content, now)
     text, entities = telegramify_markdown.convert(content)
     return _as_expandable_quote(text, entities)
 
