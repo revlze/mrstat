@@ -62,7 +62,8 @@ async def build_summary(
             response_format={"type": "json_object"},
         )
         content = response["choices"][0]["message"]["content"]
-    data = json.loads(content)
+    logger.info("summary raw response (%d chars):\n%s", len(content or ""), content)
+    data = _parse_json_object(content)
     return _format_telegram(data)
 
 
@@ -98,6 +99,20 @@ async def ask_question(
     await append_ask_history(db_path, chat_id, user_id, "assistant", content, int(time.time()))
     text, entities = telegramify_markdown.convert(content)
     return _as_expandable_quote(text, entities)
+
+
+def _parse_json_object(content: str) -> dict:
+    s = (content or "").strip()
+    if s.startswith("```"):
+        s = s.split("\n", 1)[1] if "\n" in s else s[3:]
+        if s.endswith("```"):
+            s = s[:-3]
+        s = s.strip()
+    start = s.find("{")
+    if start > 0:
+        s = s[start:]
+    obj, _ = json.JSONDecoder().raw_decode(s)
+    return obj
 
 
 def _display_name(message: StoredMessage) -> str:
