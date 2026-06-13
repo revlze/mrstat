@@ -1,5 +1,7 @@
+import asyncio
 import json
 import logging
+from collections.abc import Awaitable, Callable
 
 import telegramify_markdown
 
@@ -10,8 +12,14 @@ import time
 
 from .db import StoredMessage, get_ask_history, append_ask_history
 from . import gemini as gemini_client
-from .openrouter import chat_completion as openrouter_chat_completion
-from .prompts import ASK_SYSTEM_PROMPT, SYSTEM_PROMPT, build_user_prompt
+from .openai_client import chat_completion as openai_chat_completion
+from .prompts import (
+    ASK_SYSTEM_PROMPT,
+    IQ_SYSTEM_PROMPT,
+    SUMMARY_SYSTEM_PROMPT,
+    build_iq_prompt,
+    build_summary_prompt,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -38,32 +46,36 @@ async def build_summary(
     per_user: dict[int, dict],
     *,
     api_key: str,
+    base_url: str,
     model: str,
+    timezone: str,
     gemini_api_key: str | None = None,
     gemini_model: str | None = None,
 ) -> str:
-    user_prompt = build_user_prompt(messages, per_user)
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": user_prompt},
+    summary_messages = [
+        {"role": "system", "content": SUMMARY_SYSTEM_PROMPT},
+        {"role": "user", "content": build_summary_prompt(messages, per_user, timezone)},
     ]
+    iq_messages = [
+        {"role": "system", "content": IQ_SYSTEM_PROMPT},
+        {"role": "user", "content": build_iq_prompt(messages, per_user, timezone)},
+    ]
+
     if gemini_api_key:
-        content = await gemini_client.chat_completion(
-            api_key=gemini_api_key,
-            model=gemini_model or "gemini-2.5-flash",
-            messages=messages,
-            response_format={"type": "json_object"},
-        )
+        chat_json = _gemini_json_completion(gemini_api_key, gemini_model or "gemini-2.5-flash")
     else:
-        response = await openrouter_chat_completion(
-            api_key=api_key,
-            model=model,
-            messages=messages,
-            response_format={"type": "json_object"},
-        )
-        content = response["choices"][0]["message"]["content"]
-    logger.info("summary raw response (%d chars):\n%s", len(content or ""), content)
-    data = _parse_json_object(content)
+        chat_json = _openai_json_completion(api_key, base_url, model)
+
+    summary_content, iq_content = await asyncio.gather(
+        chat_json("summary", summary_messages),
+        chat_json("iq", iq_messages),
+    )
+    summary_data = _parse_json_object(summary_content)
+    iq_data = _parse_json_object(iq_content)
+    data = {
+        "summary": summary_data.get("summary", ""),
+        "users": iq_data.get("users", []),
+    }
     return _format_telegram(data)
 
 
@@ -74,6 +86,7 @@ async def ask_question(
     user_id: int,
     db_path: str,
     api_key: str,
+    base_url: str,
     model: str,
     gemini_api_key: str | None = None,
     gemini_model_ask: str | None = None,
@@ -92,12 +105,12 @@ async def ask_question(
             grounding=True,
         )
     else:
-        response = await openrouter_chat_completion(
+        content = await openai_chat_completion(
             api_key=api_key,
+            base_url=base_url,
             model=model,
             messages=messages,
         )
-        content = response["choices"][0]["message"]["content"]
     if not content or not content.strip():
         raise RuntimeError("AI returned empty response")
     now = int(time.time())
@@ -119,6 +132,42 @@ def _parse_json_object(content: str) -> dict:
         s = s[start:]
     obj, _ = json.JSONDecoder().raw_decode(s)
     return obj
+
+
+def _gemini_json_completion(
+    api_key: str,
+    model: str,
+) -> Callable[[str, list[dict]], Awaitable[str]]:
+    async def complete(label: str, messages: list[dict]) -> str:
+        content = await gemini_client.chat_completion(
+            api_key=api_key,
+            model=model,
+            messages=messages,
+            response_format={"type": "json_object"},
+        )
+        logger.info("%s raw response (%d chars):\n%s", label, len(content or ""), content)
+        return content
+
+    return complete
+
+
+def _openai_json_completion(
+    api_key: str,
+    base_url: str,
+    model: str,
+) -> Callable[[str, list[dict]], Awaitable[str]]:
+    async def complete(label: str, messages: list[dict]) -> str:
+        content = await openai_chat_completion(
+            api_key=api_key,
+            base_url=base_url,
+            model=model,
+            messages=messages,
+            response_format={"type": "json_object"},
+        )
+        logger.info("%s raw response (%d chars):\n%s", label, len(content or ""), content)
+        return content
+
+    return complete
 
 
 def _display_name(message: StoredMessage) -> str:

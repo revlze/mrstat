@@ -50,8 +50,10 @@ async def run_summary_for_all_chats(bot: Bot, config: Config) -> None:
             text = await build_summary(
                 messages,
                 per_user,
-                api_key=config.openrouter_api_key,
-                model=config.openrouter_model,
+                api_key=config.llm_api_key,
+                base_url=config.llm_base_url,
+                model=config.llm_model,
+                timezone=config.summary_tz,
                 gemini_api_key=config.gemini_api_key,
                 gemini_model=config.gemini_model,
             )

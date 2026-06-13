@@ -5,8 +5,9 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class Config:
     bot_token: str
-    openrouter_api_key: str
-    openrouter_model: str
+    llm_api_key: str
+    llm_base_url: str
+    llm_model: str
     gemini_api_key: str | None
     gemini_model: str
     gemini_model_ask: str
@@ -29,11 +30,32 @@ class Config:
 
     @classmethod
     def from_env(cls) -> Config:
+        gemini_api_key = os.getenv("GEMINI_API_KEY")
+        llm_api_key = (
+            os.getenv("OPENAI_API_KEY")
+            or os.getenv("FREEMODEL_API_KEY")
+            or os.getenv("OPENROUTER_API_KEY")
+        )
+        if not llm_api_key and not gemini_api_key:
+            raise RuntimeError(
+                "Missing required env var: GEMINI_API_KEY, OPENAI_API_KEY, FREEMODEL_API_KEY, or OPENROUTER_API_KEY"
+            )
         return cls(
             bot_token=_required("BOT_TOKEN"),
-            openrouter_api_key=_required("OPENROUTER_API_KEY"),
-            openrouter_model=os.getenv("OPENROUTER_MODEL", "deepseek/deepseek-chat"),
-            gemini_api_key=os.getenv("GEMINI_API_KEY"),
+            llm_api_key=llm_api_key or "",
+            llm_base_url=(
+                os.getenv("OPENAI_BASE_URL")
+                or os.getenv("FREEMODEL_BASE_URL")
+                or os.getenv("OPENROUTER_BASE_URL")
+                or "https://openrouter.ai/api/v1"
+            ),
+            llm_model=(
+                os.getenv("OPENAI_MODEL")
+                or os.getenv("FREEMODEL_MODEL")
+                or os.getenv("OPENROUTER_MODEL")
+                or "deepseek/deepseek-chat"
+            ),
+            gemini_api_key=gemini_api_key,
             gemini_model=os.getenv("GEMINI_MODEL_SUMMARY", "gemini-3-flash-preview"),
             gemini_model_ask=os.getenv("GEMINI_MODEL_ASK", "gemini-2.5-pro"),
             logs_chat_id=int(_required("LOGS_CHAT_ID")),

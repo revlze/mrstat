@@ -1,6 +1,6 @@
 # Mr. Stat
 
-Vibecoded telegram bot that watches a group chat, stores every message in SQLite, and once per day posts an AI-generated recap with a satirical IQ leaderboard. Users with fewer than 10 words in the period are skipped.
+Telegram bot that watches a group chat, stores messages in SQLite, and posts an AI-generated recap with a satirical IQ leaderboard. Photo messages are stored as a `[photo]` marker plus caption, without downloading or analyzing the image itself. Users with fewer than `MIN_WORDS` words in the period are skipped from the leaderboard.
 
 ## Setup
 
@@ -12,10 +12,27 @@ uv run python main.py
 
 Add the bot to a group **as an admin** so it can read messages (Telegram bots get group messages only when they are admins or have privacy mode disabled via @BotFather).
 
+## AI provider
+
+The bot uses an OpenAI-compatible chat-completions API by default. For Freemodel, use the values from the dashboard:
+
+```env
+FREEMODEL_API_KEY=...
+FREEMODEL_BASE_URL=https://api.freemodel.dev
+FREEMODEL_MODEL=gpt-5.5
+```
+
+`OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_MODEL` can be used instead for any OpenAI-compatible provider. If neither `OPENAI_*` nor `FREEMODEL_*` is set, the bot falls back to `OPENROUTER_*`.
+
+`GEMINI_API_KEY` is optional. When it is set, summaries and `/ask` use Gemini instead of the OpenAI-compatible provider.
+
 ## Commands
 
 - `/summary` — anyone in the chat can trigger an on-demand recap for the last 24 hours.
 - The same recap fires automatically every day at `SUMMARY_HOUR` in `SUMMARY_TZ` (defaults: 10:00 Europe/Moscow).
+- `/ask <question>` — ask the configured model a one-off question with short per-user history.
+
+Summary generation runs as two parallel model calls: the recap body receives the full chronological message history with timestamps, while the IQ leaderboard receives messages grouped by user.
 
 ## Deploy (Docker)
 
@@ -27,6 +44,10 @@ docker compose logs -f
 
 The database is stored in a named volume (`db-data`) and survives container restarts. The bot starts automatically on VPS reboot (`restart: unless-stopped`).
 
+## Photo messages
+
+When a photo is posted, the bot stores only `[photo]` and the caption, if present. It does not save files, Telegram `file_id`s, or image bytes, and it does not send images to the AI provider.
+
 ## Configuration
 
-All settings come from environment variables, see `.env.example`. The OpenRouter model is configurable via `OPENROUTER_MODEL`; any chat-completion model that supports `response_format: json_object` will work.
+All settings come from environment variables, see `.env.example`. The summary model must support chat completions and JSON-object responses.

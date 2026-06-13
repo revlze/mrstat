@@ -112,8 +112,9 @@ def build_router(config: Config) -> Router:
                 chat_id=message.chat.id,
                 user_id=message.from_user.id if message.from_user else 0,
                 db_path=config.db_path,
-                api_key=config.openrouter_api_key,
-                model=config.openrouter_model,
+                api_key=config.llm_api_key,
+                base_url=config.llm_base_url,
+                model=config.llm_model,
                 gemini_api_key=config.gemini_api_key,
                 gemini_model_ask=config.gemini_model_ask,
             )
@@ -211,7 +212,7 @@ def build_router(config: Config) -> Router:
             user_id=u.id,
             username=u.username,
             full_name=u.full_name,
-            text=f"[фото]{caption}",
+            text=f"[photo]{caption}",
             ts=int(message.date.timestamp()),
         )
 
@@ -241,7 +242,12 @@ def build_router(config: Config) -> Router:
             u.id, u.username or "", u.full_name,
             f" caption={message.caption[:60]}" if message.caption else "",
         )
-        await update_message(config.db_path, chat_id=message.chat.id, message_id=message.message_id, text=f"[фото]{caption}")
+        await update_message(
+            config.db_path,
+            chat_id=message.chat.id,
+            message_id=message.message_id,
+            text=f"[photo]{caption}",
+        )
 
     @router.chat_member(F.new_chat_member.status.in_({"kicked", "banned"}))
     async def on_user_banned(event: ChatMemberUpdated, bot: Bot) -> None:
@@ -280,8 +286,10 @@ async def _send_summary(
     text = await build_summary(
         messages,
         per_user,
-        api_key=config.openrouter_api_key,
-        model=config.openrouter_model,
+        api_key=config.llm_api_key,
+        base_url=config.llm_base_url,
+        model=config.llm_model,
+        timezone=config.summary_tz,
         gemini_api_key=config.gemini_api_key,
         gemini_model=config.gemini_model,
     )
