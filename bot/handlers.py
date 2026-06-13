@@ -128,6 +128,13 @@ def build_router(config: Config) -> Router:
         placeholder = await message.reply(random.choice(_THINKING_PLACEHOLDERS), allow_sending_without_reply=True)
         try:
             image = await _extract_ask_image(message, bot)
+            logger.info(
+                "/ask request chat=%d user=%d model=%s images=%d",
+                message.chat.id,
+                message.from_user.id if message.from_user else 0,
+                config.gemini_model_ask,
+                1 if image else 0,
+            )
             answer_text, answer_entities = await ask_question(
                 question,
                 chat_id=message.chat.id,
