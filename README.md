@@ -34,6 +34,8 @@ GEMINI_MODEL_ASK=gemma-4-31b-it
 
 If `GEMINI_MODEL_SUMMARY` is set to a non-empty value, summaries use Gemini too. If it is empty or missing, summaries use Freemodel/OpenAI-compatible settings.
 
+`LLM_TIMEOUT_SECONDS` controls the timeout for OpenAI-compatible summary requests. The default is `180`.
+
 ## Commands
 
 - `/summary` — anyone in the chat can trigger an on-demand recap for the last 24 hours.

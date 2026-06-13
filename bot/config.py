@@ -8,6 +8,7 @@ class Config:
     llm_api_key: str
     llm_base_url: str
     llm_model: str
+    llm_timeout: float
     gemini_api_key: str
     gemini_model: str | None
     gemini_model_ask: str
@@ -55,6 +56,7 @@ class Config:
                 or os.getenv("OPENROUTER_MODEL")
                 or "deepseek/deepseek-chat"
             ),
+            llm_timeout=float(os.getenv("LLM_TIMEOUT_SECONDS", "180")),
             gemini_api_key=_required("GEMINI_API_KEY"),
             gemini_model=gemini_model,
             gemini_model_ask=os.getenv("GEMINI_MODEL_ASK", "gemini-2.5-pro"),

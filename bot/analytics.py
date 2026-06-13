@@ -48,6 +48,7 @@ async def build_summary(
     api_key: str,
     base_url: str,
     model: str,
+    timeout: float,
     timezone: str,
     gemini_api_key: str | None = None,
     gemini_model: str | None = None,
@@ -66,17 +67,23 @@ async def build_summary(
             raise RuntimeError("GEMINI_API_KEY is required when GEMINI_MODEL_SUMMARY is set")
         chat_json = _gemini_json_completion(gemini_api_key, gemini_model)
     else:
-        chat_json = _openai_json_completion(api_key, base_url, model)
+        chat_json = _openai_json_completion(api_key, base_url, model, timeout)
 
-    summary_content, iq_content = await asyncio.gather(
+    summary_result, iq_result = await asyncio.gather(
         chat_json("summary", summary_messages),
         chat_json("iq", iq_messages),
+        return_exceptions=True,
     )
-    summary_data = _parse_json_object(summary_content)
-    iq_data = _parse_json_object(iq_content)
+    if isinstance(summary_result, Exception) and isinstance(iq_result, Exception):
+        raise RuntimeError("Both summary LLM requests failed") from summary_result
+
+    summary_data = _parse_llm_part("summary", summary_result)
+    iq_data = _parse_llm_part("iq", iq_result)
     data = {
         "summary": summary_data.get("summary", ""),
         "users": iq_data.get("users", []),
+        "summary_error": bool(isinstance(summary_result, Exception)),
+        "iq_error": bool(isinstance(iq_result, Exception)),
     }
     return _format_telegram(data)
 
@@ -125,6 +132,17 @@ def _parse_json_object(content: str) -> dict:
     return obj
 
 
+def _parse_llm_part(label: str, result: str | BaseException) -> dict:
+    if isinstance(result, Exception):
+        logger.exception("%s request failed", label, exc_info=result)
+        return {}
+    try:
+        return _parse_json_object(result)
+    except Exception:
+        logger.exception("%s response is not valid JSON:\n%s", label, result)
+        return {}
+
+
 def _gemini_json_completion(
     api_key: str,
     model: str,
@@ -146,6 +164,7 @@ def _openai_json_completion(
     api_key: str,
     base_url: str,
     model: str,
+    timeout: float,
 ) -> Callable[[str, list[dict]], Awaitable[str]]:
     async def complete(label: str, messages: list[dict]) -> str:
         content = await openai_chat_completion(
@@ -154,6 +173,7 @@ def _openai_json_completion(
             model=model,
             messages=messages,
             response_format={"type": "json_object"},
+            timeout=timeout,
         )
         logger.info("%s raw response (%d chars):\n%s", label, len(content or ""), content)
         return content
@@ -178,14 +198,19 @@ def _format_telegram(data: dict) -> str:
 
     if summary_text:
         parts.append(html.expandable_blockquote(summary_text))
+    elif data.get("summary_error"):
+        parts.append(html.expandable_blockquote("Обзор временно не собрался: модель не ответила вовремя."))
 
     iq_lines = ["🧠 IQ-рейтинг:"]
-    for index, user in enumerate(users_sorted, 1):
-        name = html.quote((user.get("name") or "???").replace("@", "@​"))
-        iq = user.get("iq", "???")
-        comment = (user.get("comment") or "").strip()
-        suffix = f" · {html.quote(comment)}" if comment else ""
-        iq_lines.append(f"{index}. {name} — {iq}{suffix}")
+    if users_sorted:
+        for index, user in enumerate(users_sorted, 1):
+            name = html.quote((user.get("name") or "???").replace("@", "@​"))
+            iq = user.get("iq", "???")
+            comment = (user.get("comment") or "").strip()
+            suffix = f" · {html.quote(comment)}" if comment else ""
+            iq_lines.append(f"{index}. {name} — {iq}{suffix}")
+    elif data.get("iq_error"):
+        iq_lines.append("Временно не собрался: модель не ответила вовремя.")
     parts.append(html.expandable_blockquote("\n".join(iq_lines)))
 
     parts.append("\n#summary")

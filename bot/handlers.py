@@ -286,6 +286,7 @@ async def _send_summary(
         api_key=config.llm_api_key,
         base_url=config.llm_base_url,
         model=config.llm_model,
+        timeout=config.llm_timeout,
         timezone=config.summary_tz,
         gemini_api_key=config.gemini_api_key,
         gemini_model=config.gemini_model,
