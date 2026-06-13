@@ -5,6 +5,7 @@ import time
 import traceback
 from collections.abc import Awaitable, Callable
 from datetime import datetime
+from io import BytesIO
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -16,6 +17,7 @@ from aiogram.types import ChatMemberUpdated, Message, TelegramObject
 from .analytics import aggregate_by_user, ask_question, build_summary
 from .config import Config
 from .db import delete_user_messages, get_last_summary, get_messages_for_period, get_summary_calls_today, increment_summary_calls, save_last_summary, save_message, update_message
+from .gemini import InlineImage
 from .logging_sink import chat_ref, log_to_chat
 
 
@@ -85,6 +87,21 @@ def _get_lock(chat_id: int) -> asyncio.Lock:
     return _summary_locks[chat_id]
 
 
+async def _extract_ask_image(message: Message, bot: Bot) -> InlineImage | None:
+    source = message if message.photo else message.reply_to_message
+    if source is None or not source.photo:
+        return None
+
+    photo = source.photo[-1]
+    file = await bot.get_file(photo.file_id)
+    if not file.file_path:
+        raise RuntimeError("Telegram did not return a file path for the photo")
+
+    buffer = BytesIO()
+    await bot.download_file(file.file_path, destination=buffer)
+    return InlineImage(data=buffer.getvalue(), mime_type="image/jpeg")
+
+
 def build_router(config: Config) -> Router:
     router = Router(name="mr-stat")
     allowlist = AllowlistMiddleware(
@@ -99,14 +116,18 @@ def build_router(config: Config) -> Router:
 
     @router.message(Command("ask"))
     async def cmd_ask(message: Message, bot: Bot) -> None:
-        text = message.text or ""
+        text = message.text or message.caption or ""
         parts = text.split(maxsplit=1)
         question = parts[1].strip() if len(parts) > 1 else ""
         if not question:
-            await message.reply("Usage: /ask <question>", allow_sending_without_reply=True)
+            await message.reply(
+                "Usage: /ask <question>\nYou can also attach a photo or reply to a photo.",
+                allow_sending_without_reply=True,
+            )
             return
         placeholder = await message.reply(random.choice(_THINKING_PLACEHOLDERS), allow_sending_without_reply=True)
         try:
+            image = await _extract_ask_image(message, bot)
             answer_text, answer_entities = await ask_question(
                 question,
                 chat_id=message.chat.id,
@@ -114,6 +135,7 @@ def build_router(config: Config) -> Router:
                 db_path=config.db_path,
                 gemini_api_key=config.gemini_api_key,
                 gemini_model_ask=config.gemini_model_ask,
+                images=[image] if image else None,
             )
         except Exception:
             tb = traceback.format_exc()
@@ -194,6 +216,8 @@ def build_router(config: Config) -> Router:
     async def on_photo(message: Message) -> None:
         if message.from_user is None:
             return
+        if message.caption and message.caption.startswith("/"):
+            return
         u = message.from_user
         caption = f" {message.caption}" if message.caption else ""
         logger.debug(
@@ -230,6 +254,8 @@ def build_router(config: Config) -> Router:
     @router.edited_message(F.chat.type.in_({"group", "supergroup"}), F.photo)
     async def on_photo_edited(message: Message) -> None:
         if message.from_user is None:
+            return
+        if message.caption and message.caption.startswith("/"):
             return
         u = message.from_user
         caption = f" {message.caption}" if message.caption else ""

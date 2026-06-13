@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from dataclasses import dataclass
 
 from google import genai
 from google.genai.errors import ServerError
@@ -11,6 +12,12 @@ _RETRY_DELAYS = [15, 30, 60]  # seconds between attempts
 _RETRYABLE_STATUSES = ("500", "503", "504", "429")
 
 
+@dataclass(frozen=True)
+class InlineImage:
+    data: bytes
+    mime_type: str
+
+
 async def chat_completion(
     *,
     api_key: str,
@@ -18,17 +25,21 @@ async def chat_completion(
     messages: list[dict],
     response_format: dict | None = None,
     grounding: bool = False,
+    images: list[InlineImage] | None = None,
 ) -> str:
     client = genai.Client(api_key=api_key)
 
     system_instruction = None
     contents: list[Content] = []
-    for msg in messages:
+    for index, msg in enumerate(messages):
         if msg["role"] == "system":
             system_instruction = msg["content"]
             continue
         role = "model" if msg["role"] == "assistant" else "user"
-        contents.append(Content(role=role, parts=[Part(text=msg["content"])]))
+        parts = [Part(text=msg["content"])]
+        if images and role == "user" and index == len(messages) - 1:
+            parts.extend(Part.from_bytes(data=image.data, mime_type=image.mime_type) for image in images)
+        contents.append(Content(role=role, parts=parts))
 
     config = GenerateContentConfig(
         system_instruction=system_instruction,

@@ -12,6 +12,7 @@ import time
 
 from .db import StoredMessage, get_ask_history, append_ask_history
 from . import gemini as gemini_client
+from .gemini import InlineImage
 from .openai_client import chat_completion as openai_chat_completion
 from .prompts import (
     ASK_SYSTEM_PROMPT,
@@ -65,8 +66,10 @@ async def build_summary(
     if gemini_model:
         if not gemini_api_key:
             raise RuntimeError("GEMINI_API_KEY is required when GEMINI_MODEL_SUMMARY is set")
+        logger.info("/summary target provider=gemini model=%s", gemini_model)
         chat_json = _gemini_json_completion(gemini_api_key, gemini_model)
     else:
+        logger.info("/summary target provider=openai-compatible base_url=%s model=%s", base_url, model)
         chat_json = _openai_json_completion(api_key, base_url, model, timeout)
 
     summary_result, iq_result = await asyncio.gather(
@@ -96,6 +99,7 @@ async def ask_question(
     db_path: str,
     gemini_api_key: str,
     gemini_model_ask: str | None = None,
+    images: list[InlineImage] | None = None,
 ) -> tuple[str, list]:
     history = await get_ask_history(db_path, chat_id, user_id)
     messages = [
@@ -103,16 +107,24 @@ async def ask_question(
         *history,
         {"role": "user", "content": question},
     ]
+    ask_model = gemini_model_ask or "gemma-4-31b-it"
+    logger.info(
+        "/ask target provider=gemini model=%s grounding=true images=%d",
+        ask_model,
+        len(images or []),
+    )
     content = await gemini_client.chat_completion(
         api_key=gemini_api_key,
-        model=gemini_model_ask or "gemma-4-31b-it",
+        model=ask_model,
         messages=messages,
         grounding=True,
+        images=images,
     )
     if not content or not content.strip():
         raise RuntimeError("AI returned empty response")
     now = int(time.time())
-    await append_ask_history(db_path, chat_id, user_id, "user", question, now)
+    history_question = f"{question}\n[image attached]" if images else question
+    await append_ask_history(db_path, chat_id, user_id, "user", history_question, now)
     await append_ask_history(db_path, chat_id, user_id, "assistant", content, now)
     text, entities = telegramify_markdown.convert(content)
     return _as_expandable_quote(text, entities)

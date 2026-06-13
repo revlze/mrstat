@@ -41,6 +41,7 @@ If `GEMINI_MODEL_SUMMARY` is set to a non-empty value, summaries use Gemini too.
 - `/summary` — anyone in the chat can trigger an on-demand recap for the last 24 hours.
 - The same recap fires automatically every day at `SUMMARY_HOUR` in `SUMMARY_TZ` (defaults: 10:00 Europe/Moscow).
 - `/ask <question>` — ask the configured model a one-off question with short per-user history.
+  You can attach a photo with `/ask` in the caption, or reply with `/ask <question>` to a photo.
 
 Summary generation runs as two parallel model calls: the recap body receives the full chronological message history with timestamps, while the IQ leaderboard receives messages grouped by user.
 
@@ -56,7 +57,9 @@ The database is stored in a named volume (`db-data`) and survives container rest
 
 ## Photo messages
 
-When a photo is posted, the bot stores only `[photo]` and the caption, if present. It does not save files, Telegram `file_id`s, or image bytes, and it does not send images to the AI provider.
+When a photo is posted, the bot stores only `[photo]` and the caption, if present. It does not save files, Telegram `file_id`s, or image bytes for summaries.
+
+For `/ask`, the bot can temporarily download one attached or replied-to photo and send it to the ask model with the question. The image bytes are not stored in SQLite; ask history stores only the question plus an `[image attached]` marker.
 
 ## Configuration
 
