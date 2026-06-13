@@ -129,10 +129,11 @@ def build_router(config: Config) -> Router:
         try:
             image = await _extract_ask_image(message, bot)
             logger.info(
-                "/ask request chat=%d user=%d model=%s images=%d",
+                "/ask request chat=%d user=%d provider=%s model=%s images=%d",
                 message.chat.id,
                 message.from_user.id if message.from_user else 0,
-                config.gemini_model_ask,
+                "gemini" if config.gemini_api_key else "openai-compatible",
+                config.gemini_model_ask if config.gemini_api_key else config.llm_model,
                 1 if image else 0,
             )
             answer_text, answer_entities = await ask_question(
@@ -140,6 +141,10 @@ def build_router(config: Config) -> Router:
                 chat_id=message.chat.id,
                 user_id=message.from_user.id if message.from_user else 0,
                 db_path=config.db_path,
+                api_key=config.llm_api_key,
+                base_url=config.llm_base_url,
+                model=config.llm_model,
+                timeout=config.llm_timeout,
                 gemini_api_key=config.gemini_api_key,
                 gemini_model_ask=config.gemini_model_ask,
                 images=[image] if image else None,

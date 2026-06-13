@@ -13,7 +13,10 @@ import time
 from .db import StoredMessage, get_ask_history, append_ask_history
 from . import gemini as gemini_client
 from .gemini import InlineImage
-from .openai_client import chat_completion as openai_chat_completion
+from .openai_client import (
+    chat_completion as openai_chat_completion,
+    vision_chat_completion as openai_vision_chat_completion,
+)
 from .prompts import (
     ASK_SYSTEM_PROMPT,
     IQ_SYSTEM_PROMPT,
@@ -63,12 +66,14 @@ async def build_summary(
         {"role": "user", "content": build_iq_prompt(messages, per_user, timezone)},
     ]
 
-    if gemini_model:
-        if not gemini_api_key:
-            raise RuntimeError("GEMINI_API_KEY is required when GEMINI_MODEL_SUMMARY is set")
+    if gemini_model and gemini_api_key:
         logger.info("/summary target provider=gemini model=%s", gemini_model)
         chat_json = _gemini_json_completion(gemini_api_key, gemini_model)
     else:
+        if gemini_model and not gemini_api_key:
+            logger.warning(
+                "/summary provider=gemini requested but GEMINI_API_KEY is missing; falling back to openai-compatible"
+            )
         logger.info("/summary target provider=openai-compatible base_url=%s model=%s", base_url, model)
         chat_json = _openai_json_completion(api_key, base_url, model, timeout)
 
@@ -97,7 +102,11 @@ async def ask_question(
     chat_id: int,
     user_id: int,
     db_path: str,
-    gemini_api_key: str,
+    api_key: str,
+    base_url: str,
+    model: str,
+    timeout: float,
+    gemini_api_key: str | None = None,
     gemini_model_ask: str | None = None,
     images: list[InlineImage] | None = None,
 ) -> tuple[str, list]:
@@ -107,19 +116,35 @@ async def ask_question(
         *history,
         {"role": "user", "content": question},
     ]
-    ask_model = gemini_model_ask or "gemma-4-31b-it"
-    logger.info(
-        "/ask target provider=gemini model=%s grounding=true images=%d",
-        ask_model,
-        len(images or []),
-    )
-    content = await gemini_client.chat_completion(
-        api_key=gemini_api_key,
-        model=ask_model,
-        messages=messages,
-        grounding=True,
-        images=images,
-    )
+    if gemini_api_key:
+        ask_model = gemini_model_ask or "gemini-2.5-pro"
+        logger.info(
+            "/ask target provider=gemini model=%s grounding=true images=%d",
+            ask_model,
+            len(images or []),
+        )
+        content = await gemini_client.chat_completion(
+            api_key=gemini_api_key,
+            model=ask_model,
+            messages=messages,
+            grounding=True,
+            images=images,
+        )
+    else:
+        logger.info(
+            "/ask target provider=openai-compatible base_url=%s model=%s grounding=false images=%d",
+            base_url,
+            model,
+            len(images or []),
+        )
+        content = await openai_vision_chat_completion(
+            api_key=api_key,
+            base_url=base_url,
+            model=model,
+            messages=messages,
+            images=images,
+            timeout=timeout,
+        )
     if not content or not content.strip():
         raise RuntimeError("AI returned empty response")
     now = int(time.time())

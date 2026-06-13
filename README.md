@@ -14,7 +14,7 @@ Add the bot to a group **as an admin** so it can read messages (Telegram bots ge
 
 ## AI Providers
 
-`/summary` uses an OpenAI-compatible chat-completions API by default. For Freemodel, use the values from the dashboard:
+`/summary` uses an OpenAI-compatible chat-completions API by default. `/ask` uses Gemini when `GEMINI_API_KEY` is set, otherwise it falls back to the same OpenAI-compatible provider. For Freemodel, use the values from the dashboard:
 
 ```env
 FREEMODEL_API_KEY=...
@@ -25,14 +25,14 @@ GEMINI_MODEL_SUMMARY=
 
 `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_MODEL` can be used instead for any OpenAI-compatible provider. If neither `OPENAI_*` nor `FREEMODEL_*` is set, the bot falls back to `OPENROUTER_*`.
 
-`/ask` always uses Gemini:
+Gemini is optional for `/ask` and as a `/summary` override:
 
 ```env
 GEMINI_API_KEY=...
-GEMINI_MODEL_ASK=gemma-4-31b-it
+GEMINI_MODEL_ASK=gemini-2.5-pro
 ```
 
-If `GEMINI_MODEL_SUMMARY` is set to a non-empty value, summaries use Gemini too. If it is empty or missing, summaries use Freemodel/OpenAI-compatible settings.
+If `GEMINI_API_KEY` is empty, `/ask` uses Freemodel/OpenAI-compatible settings. If `GEMINI_MODEL_SUMMARY` and `GEMINI_API_KEY` are both set, summaries use Gemini too. Otherwise summaries use Freemodel/OpenAI-compatible settings.
 
 `LLM_TIMEOUT_SECONDS` controls the timeout for OpenAI-compatible summary requests. The default is `180`.
 

@@ -9,7 +9,7 @@ class Config:
     llm_base_url: str
     llm_model: str
     llm_timeout: float
-    gemini_api_key: str
+    gemini_api_key: str | None
     gemini_model: str | None
     gemini_model_ask: str
     logs_chat_id: int
@@ -37,9 +37,10 @@ class Config:
             or os.getenv("FREEMODEL_API_KEY")
             or os.getenv("OPENROUTER_API_KEY")
         )
-        if not llm_api_key and not gemini_model:
+        gemini_api_key = os.getenv("GEMINI_API_KEY") or None
+        if not llm_api_key and not (gemini_model and gemini_api_key):
             raise RuntimeError(
-                "Missing required env var for /summary: GEMINI_MODEL_SUMMARY, OPENAI_API_KEY, FREEMODEL_API_KEY, or OPENROUTER_API_KEY"
+                "Missing required env var: FREEMODEL_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, or GEMINI_API_KEY with GEMINI_MODEL_SUMMARY"
             )
         return cls(
             bot_token=_required("BOT_TOKEN"),
@@ -57,7 +58,7 @@ class Config:
                 or "deepseek/deepseek-chat"
             ),
             llm_timeout=float(os.getenv("LLM_TIMEOUT_SECONDS", "180")),
-            gemini_api_key=_required("GEMINI_API_KEY"),
+            gemini_api_key=gemini_api_key,
             gemini_model=gemini_model,
             gemini_model_ask=os.getenv("GEMINI_MODEL_ASK", "gemini-2.5-pro"),
             logs_chat_id=int(_required("LOGS_CHAT_ID")),

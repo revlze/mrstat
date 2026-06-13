@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import logging
 from dataclasses import dataclass
 
@@ -16,6 +17,9 @@ _RETRYABLE_STATUSES = ("500", "503", "504", "429")
 class InlineImage:
     data: bytes
     mime_type: str
+
+    def as_base64(self) -> str:
+        return base64.b64encode(self.data).decode("ascii")
 
 
 async def chat_completion(
