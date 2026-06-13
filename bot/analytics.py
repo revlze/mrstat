@@ -61,8 +61,10 @@ async def build_summary(
         {"role": "user", "content": build_iq_prompt(messages, per_user, timezone)},
     ]
 
-    if gemini_api_key:
-        chat_json = _gemini_json_completion(gemini_api_key, gemini_model or "gemini-2.5-flash")
+    if gemini_model:
+        if not gemini_api_key:
+            raise RuntimeError("GEMINI_API_KEY is required when GEMINI_MODEL_SUMMARY is set")
+        chat_json = _gemini_json_completion(gemini_api_key, gemini_model)
     else:
         chat_json = _openai_json_completion(api_key, base_url, model)
 
@@ -85,10 +87,7 @@ async def ask_question(
     chat_id: int,
     user_id: int,
     db_path: str,
-    api_key: str,
-    base_url: str,
-    model: str,
-    gemini_api_key: str | None = None,
+    gemini_api_key: str,
     gemini_model_ask: str | None = None,
 ) -> tuple[str, list]:
     history = await get_ask_history(db_path, chat_id, user_id)
@@ -97,20 +96,12 @@ async def ask_question(
         *history,
         {"role": "user", "content": question},
     ]
-    if gemini_api_key:
-        content = await gemini_client.chat_completion(
-            api_key=gemini_api_key,
-            model=gemini_model_ask or "gemma-4-31b-it",
-            messages=messages,
-            grounding=True,
-        )
-    else:
-        content = await openai_chat_completion(
-            api_key=api_key,
-            base_url=base_url,
-            model=model,
-            messages=messages,
-        )
+    content = await gemini_client.chat_completion(
+        api_key=gemini_api_key,
+        model=gemini_model_ask or "gemma-4-31b-it",
+        messages=messages,
+        grounding=True,
+    )
     if not content or not content.strip():
         raise RuntimeError("AI returned empty response")
     now = int(time.time())

@@ -12,19 +12,27 @@ uv run python main.py
 
 Add the bot to a group **as an admin** so it can read messages (Telegram bots get group messages only when they are admins or have privacy mode disabled via @BotFather).
 
-## AI provider
+## AI Providers
 
-The bot uses an OpenAI-compatible chat-completions API by default. For Freemodel, use the values from the dashboard:
+`/summary` uses an OpenAI-compatible chat-completions API by default. For Freemodel, use the values from the dashboard:
 
 ```env
 FREEMODEL_API_KEY=...
 FREEMODEL_BASE_URL=https://api.freemodel.dev
 FREEMODEL_MODEL=gpt-5.5
+GEMINI_MODEL_SUMMARY=
 ```
 
 `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_MODEL` can be used instead for any OpenAI-compatible provider. If neither `OPENAI_*` nor `FREEMODEL_*` is set, the bot falls back to `OPENROUTER_*`.
 
-`GEMINI_API_KEY` is optional. When it is set, summaries and `/ask` use Gemini instead of the OpenAI-compatible provider.
+`/ask` always uses Gemini:
+
+```env
+GEMINI_API_KEY=...
+GEMINI_MODEL_ASK=gemma-4-31b-it
+```
+
+If `GEMINI_MODEL_SUMMARY` is set to a non-empty value, summaries use Gemini too. If it is empty or missing, summaries use Freemodel/OpenAI-compatible settings.
 
 ## Commands
 

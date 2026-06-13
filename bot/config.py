@@ -8,8 +8,8 @@ class Config:
     llm_api_key: str
     llm_base_url: str
     llm_model: str
-    gemini_api_key: str | None
-    gemini_model: str
+    gemini_api_key: str
+    gemini_model: str | None
     gemini_model_ask: str
     logs_chat_id: int
     summary_hour: int
@@ -30,15 +30,15 @@ class Config:
 
     @classmethod
     def from_env(cls) -> Config:
-        gemini_api_key = os.getenv("GEMINI_API_KEY")
+        gemini_model = os.getenv("GEMINI_MODEL_SUMMARY") or None
         llm_api_key = (
             os.getenv("OPENAI_API_KEY")
             or os.getenv("FREEMODEL_API_KEY")
             or os.getenv("OPENROUTER_API_KEY")
         )
-        if not llm_api_key and not gemini_api_key:
+        if not llm_api_key and not gemini_model:
             raise RuntimeError(
-                "Missing required env var: GEMINI_API_KEY, OPENAI_API_KEY, FREEMODEL_API_KEY, or OPENROUTER_API_KEY"
+                "Missing required env var for /summary: GEMINI_MODEL_SUMMARY, OPENAI_API_KEY, FREEMODEL_API_KEY, or OPENROUTER_API_KEY"
             )
         return cls(
             bot_token=_required("BOT_TOKEN"),
@@ -55,8 +55,8 @@ class Config:
                 or os.getenv("OPENROUTER_MODEL")
                 or "deepseek/deepseek-chat"
             ),
-            gemini_api_key=gemini_api_key,
-            gemini_model=os.getenv("GEMINI_MODEL_SUMMARY", "gemini-3-flash-preview"),
+            gemini_api_key=_required("GEMINI_API_KEY"),
+            gemini_model=gemini_model,
             gemini_model_ask=os.getenv("GEMINI_MODEL_ASK", "gemini-2.5-pro"),
             logs_chat_id=int(_required("LOGS_CHAT_ID")),
             summary_hour=int(os.getenv("SUMMARY_HOUR", "10")),
