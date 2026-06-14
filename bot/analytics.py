@@ -109,7 +109,7 @@ async def ask_question(
     gemini_api_key: str | None = None,
     gemini_model_ask: str | None = None,
     images: list[InlineImage] | None = None,
-) -> tuple[str, list]:
+) -> tuple[str, list, str]:
     history = await get_ask_history(db_path, chat_id, user_id)
     messages = [
         {"role": "system", "content": ASK_SYSTEM_PROMPT},
@@ -152,7 +152,8 @@ async def ask_question(
     await append_ask_history(db_path, chat_id, user_id, "user", history_question, now)
     await append_ask_history(db_path, chat_id, user_id, "assistant", content, now)
     text, entities = telegramify_markdown.convert(content)
-    return _as_expandable_quote(text, entities)
+    text, entities = _as_expandable_quote(text, entities)
+    return text, entities, content
 
 
 def _strip_response_fence(content: str) -> str:

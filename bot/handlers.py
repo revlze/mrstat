@@ -12,13 +12,14 @@ from zoneinfo import ZoneInfo
 from aiogram import BaseMiddleware, Bot, F, Router
 from aiogram.enums import ParseMode
 from aiogram.filters import Command
-from aiogram.types import ChatMemberUpdated, Message, TelegramObject
+from aiogram.types import ChatMemberUpdated, Message, ReactionTypeEmoji, TelegramObject
 
 from .analytics import aggregate_by_user, ask_question, build_summary
 from .config import Config
 from .db import delete_user_messages, get_last_summary, get_messages_for_period, get_summary_calls_today, increment_summary_calls, save_last_summary, save_message, update_message
 from .gemini import InlineImage
 from .logging_sink import chat_ref, log_to_chat
+from .telegram_delivery import html_to_text, send_text_or_document
 
 
 logger = logging.getLogger(__name__)
@@ -102,6 +103,22 @@ async def _extract_ask_image(message: Message, bot: Bot) -> InlineImage | None:
     return InlineImage(data=buffer.getvalue(), mime_type="image/jpeg")
 
 
+async def _mark_user_message_done(bot: Bot, message: Message) -> None:
+    try:
+        await bot.set_message_reaction(
+            chat_id=message.chat.id,
+            message_id=message.message_id,
+            reaction=[ReactionTypeEmoji(emoji="👍")],
+        )
+    except Exception:
+        logger.debug(
+            "could not set done reaction chat=%d message=%d",
+            message.chat.id,
+            message.message_id,
+            exc_info=True,
+        )
+
+
 def build_router(config: Config) -> Router:
     router = Router(name="mr-stat")
     allowlist = AllowlistMiddleware(
@@ -136,7 +153,7 @@ def build_router(config: Config) -> Router:
                 config.gemini_model_ask if config.gemini_api_key else config.llm_model,
                 1 if image else 0,
             )
-            answer_text, answer_entities = await ask_question(
+            answer_text, answer_entities, answer_markdown = await ask_question(
                 question,
                 chat_id=message.chat.id,
                 user_id=message.from_user.id if message.from_user else 0,
@@ -154,9 +171,17 @@ def build_router(config: Config) -> Router:
             await log_to_chat(bot, config.logs_chat_id, f"/ask failed:\n{tb}", level=logging.ERROR)
             await placeholder.edit_text("Failed to get an answer.")
             return
-        await placeholder.edit_text(answer_text, entities=answer_entities)
-
-
+        await send_text_or_document(
+            bot,
+            message.chat.id,
+            answer_text,
+            placeholder=placeholder,
+            reply_to=message,
+            entities=answer_entities,
+            filename="ask-answer.md",
+            document_text=answer_markdown,
+        )
+        await _mark_user_message_done(bot, message)
 
     @router.message(Command("summary"))
     async def cmd_summary(message: Message, bot: Bot) -> None:
@@ -187,10 +212,12 @@ def build_router(config: Config) -> Router:
         placeholder = await message.reply("Generating summary...", allow_sending_without_reply=True)
         async with lock:
             try:
-                await _send_summary(
+                sent = await _send_summary(
                     bot, config, message.chat.id,
-                    placeholder=placeholder, chat_username=message.chat.username,
+                    placeholder=placeholder, reply_to=message, chat_username=message.chat.username,
                 )
+                if sent:
+                    await _mark_user_message_done(bot, message)
             except Exception:
                 tb = traceback.format_exc()
                 await log_to_chat(
@@ -304,6 +331,7 @@ async def _send_summary(
     chat_id: int,
     *,
     placeholder: Message | None = None,
+    reply_to: Message | None = None,
     chat_username: str | None = None,
 ) -> bool:
     """Build and deliver a summary for `chat_id`. Returns True if a summary was sent."""
@@ -329,10 +357,16 @@ async def _send_summary(
         gemini_api_key=config.gemini_api_key,
         gemini_model=config.gemini_model,
     )
-    if placeholder is not None:
-        sent = await placeholder.edit_text(text, parse_mode=ParseMode.HTML)
-    else:
-        sent = await bot.send_message(chat_id, text, parse_mode=ParseMode.HTML)
+    sent = await send_text_or_document(
+        bot,
+        chat_id,
+        text,
+        placeholder=placeholder,
+        reply_to=reply_to,
+        parse_mode=ParseMode.HTML,
+        filename="summary.md",
+        document_text=html_to_text(text),
+    )
     await save_last_summary(config.db_path, chat_id, sent.message_id, int(time.time()))
     await log_to_chat(bot, config.logs_chat_id, f"summary in {chat_ref(chat_id, chat_username)}:\n{text}")
     return True
