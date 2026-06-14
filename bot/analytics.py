@@ -85,13 +85,13 @@ async def build_summary(
     if isinstance(summary_result, Exception) and isinstance(iq_result, Exception):
         raise RuntimeError("Both summary LLM requests failed") from summary_result
 
-    summary_data = _parse_llm_part("summary", summary_result)
-    iq_data = _parse_llm_part("iq", iq_result)
+    summary_data, summary_error = _parse_llm_part("summary", summary_result)
+    iq_data, iq_error = _parse_llm_part("iq", iq_result)
     data = {
         "summary": summary_data.get("summary", ""),
         "users": iq_data.get("users", []),
-        "summary_error": bool(isinstance(summary_result, Exception)),
-        "iq_error": bool(isinstance(iq_result, Exception)),
+        "summary_error": summary_error,
+        "iq_error": iq_error,
     }
     return _format_telegram(data)
 
@@ -155,29 +155,97 @@ async def ask_question(
     return _as_expandable_quote(text, entities)
 
 
-def _parse_json_object(content: str) -> dict:
+def _strip_response_fence(content: str) -> str:
     s = (content or "").strip()
     if s.startswith("```"):
         s = s.split("\n", 1)[1] if "\n" in s else s[3:]
         if s.endswith("```"):
             s = s[:-3]
         s = s.strip()
+    return s
+
+
+def _strip_json_response(content: str) -> str:
+    s = _strip_response_fence(content)
     start = s.find("{")
     if start > 0:
         s = s[start:]
+    return s
+
+
+def _parse_json_object(content: str) -> dict:
+    s = _strip_json_response(content)
     obj, _ = json.JSONDecoder().raw_decode(s)
+    if not isinstance(obj, dict):
+        raise ValueError("JSON response is not an object")
     return obj
 
 
-def _parse_llm_part(label: str, result: str | BaseException) -> dict:
+def _parse_llm_part(label: str, result: str | BaseException) -> tuple[dict, bool]:
     if isinstance(result, Exception):
         logger.exception("%s request failed", label, exc_info=result)
-        return {}
+        return {}, True
     try:
-        return _parse_json_object(result)
+        return _parse_json_object(result), False
     except Exception:
         logger.exception("%s response is not valid JSON:\n%s", label, result)
+        if label == "summary":
+            recovered = _recover_summary_object(result)
+            if recovered:
+                logger.warning("%s response recovered from malformed JSON", label)
+                return recovered, False
+            text = _clean_raw_summary_text(result)
+            if text:
+                logger.warning("%s response used as plain text after JSON parse failed", label)
+                return {"summary": text}, False
+        return {}, True
+
+
+def _recover_summary_object(content: str) -> dict:
+    s = _strip_json_response(content)
+    key_pos = s.find('"summary"')
+    if key_pos < 0:
         return {}
+    colon_pos = s.find(":", key_pos + len('"summary"'))
+    if colon_pos < 0:
+        return {}
+
+    decoder = json.JSONDecoder()
+    fragments: list[str] = []
+    pos = colon_pos + 1
+
+    while True:
+        pos = _skip_json_whitespace(s, pos)
+        if pos >= len(s):
+            break
+        try:
+            value, end = decoder.raw_decode(s, pos)
+        except json.JSONDecodeError:
+            break
+        next_pos = _skip_json_whitespace(s, end)
+        if next_pos < len(s) and s[next_pos] == ":":
+            break
+        if not isinstance(value, str):
+            break
+        fragments.append(value)
+
+        next_pos = _skip_json_whitespace(s, end)
+        if next_pos >= len(s) or s[next_pos] != ",":
+            break
+        pos = next_pos + 1
+
+    summary = "\n\n".join(fragment.strip() for fragment in fragments if fragment.strip())
+    return {"summary": summary} if summary else {}
+
+
+def _clean_raw_summary_text(content: str) -> str:
+    return _strip_response_fence(content).strip()
+
+
+def _skip_json_whitespace(s: str, pos: int) -> int:
+    while pos < len(s) and s[pos] in " \t\r\n":
+        pos += 1
+    return pos
 
 
 def _gemini_json_completion(
