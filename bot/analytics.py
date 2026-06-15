@@ -30,19 +30,34 @@ logger = logging.getLogger(__name__)
 
 
 def aggregate_by_user(
-    messages: list[StoredMessage], min_words: int
+    messages: list[StoredMessage],
+    min_words: int,
+    always_include_usernames: frozenset[str] | None = None,
 ) -> dict[int, dict]:
+    always_include_usernames = always_include_usernames or frozenset()
     per_user: dict[int, dict] = {}
     for message in messages:
+        username = _username_key(message.username)
         info = per_user.setdefault(
             message.user_id,
-            {"display_name": _display_name(message), "texts": [], "word_count": 0},
+            {
+                "display_name": _display_name(message),
+                "username": username,
+                "texts": [],
+                "word_count": 0,
+            },
         )
         if message.username and not info["display_name"].startswith("@"):
             info["display_name"] = f"@{message.username}"
+        if username and not info["username"]:
+            info["username"] = username
         info["texts"].append(message.text)
         info["word_count"] += len(message.text.split())
-    return {uid: info for uid, info in per_user.items() if info["word_count"] >= min_words}
+    return {
+        uid: info
+        for uid, info in per_user.items()
+        if info["word_count"] >= min_words or info["username"] in always_include_usernames
+    }
 
 
 async def build_summary(
@@ -293,6 +308,10 @@ def _display_name(message: StoredMessage) -> str:
     if message.full_name:
         return message.full_name
     return str(message.user_id)
+
+
+def _username_key(username: str | None) -> str | None:
+    return username.lstrip("@").lower() if username else None
 
 
 def _format_telegram(data: dict) -> str:

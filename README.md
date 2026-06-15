@@ -1,6 +1,6 @@
 # Mr. Stat
 
-Telegram bot that watches a group chat, stores messages in SQLite, and posts an AI-generated recap with a satirical IQ leaderboard. Photo messages are stored as a `[photo]` marker plus caption, without downloading or analyzing the image itself. Users with fewer than `MIN_WORDS` words in the period are skipped from the leaderboard.
+Telegram bot that watches a group chat, stores messages in SQLite, and posts an AI-generated recap with a satirical IQ leaderboard. Photo messages are stored as a `[photo]` marker plus caption, without downloading or analyzing the image itself. Users with fewer than `MIN_WORDS` words in the period are skipped from the leaderboard, except allowlisted bot usernames from `SUMMARY_BOT_USERNAMES`.
 
 ## Setup
 
@@ -44,6 +44,8 @@ If `GEMINI_API_KEY` is empty, `/ask` uses Freemodel/OpenAI-compatible settings. 
   You can attach a photo with `/ask` in the caption, or reply with `/ask <question>` to a photo.
 
 Summary generation runs as two parallel model calls: the recap body receives the full chronological message history with timestamps, while the IQ leaderboard receives messages grouped by user.
+
+Bot messages are ignored by default unless the bot username is listed in `SUMMARY_BOT_USERNAMES` (default: `ainemotronbot`). Use comma-separated usernames without or with `@`.
 
 ## Deploy (Docker)
 

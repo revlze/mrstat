@@ -20,6 +20,7 @@ class Config:
     retention_days: int
     summary_period_hours: int
     summary_daily_limit: int
+    summary_bot_usernames: frozenset[str]
     allowed_chat_ids: frozenset[int]
     allowed_user_ids: frozenset[int]
     blocked_user_ids: frozenset[int]
@@ -69,6 +70,7 @@ class Config:
             retention_days=int(os.getenv("RETENTION_DAYS", "3")),
             summary_period_hours=int(os.getenv("SUMMARY_PERIOD_HOURS", "24")),
             summary_daily_limit=int(os.getenv("SUMMARY_DAILY_LIMIT", "3")),
+            summary_bot_usernames=_parse_username_set(os.getenv("SUMMARY_BOT_USERNAMES", "ainemotronbot")),
             allowed_chat_ids=_parse_int_set(os.getenv("ALLOWED_CHAT_IDS", "")),
             allowed_user_ids=_parse_int_set(os.getenv("ALLOWED_USER_IDS", "")),
             blocked_user_ids=_parse_int_set(os.getenv("BLOCKED_USER_IDS", "")),
@@ -86,3 +88,12 @@ def _required(name: str) -> str:
 def _parse_int_set(raw: str) -> frozenset[int]:
     raw = raw.split("#", 1)[0]
     return frozenset(int(p) for p in raw.replace(";", ",").split(",") if p.strip())
+
+
+def _parse_username_set(raw: str) -> frozenset[str]:
+    raw = raw.split("#", 1)[0]
+    return frozenset(
+        username
+        for part in raw.replace(";", ",").split(",")
+        if (username := part.strip().lstrip("@").lower())
+    )

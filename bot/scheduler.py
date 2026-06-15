@@ -44,7 +44,7 @@ async def run_summary_for_all_chats(bot: Bot, config: Config) -> None:
 
         try:
             messages = await get_messages_for_period(config.db_path, chat_id, since_ts)
-            per_user = aggregate_by_user(messages, config.min_words)
+            per_user = aggregate_by_user(messages, config.min_words, config.summary_bot_usernames)
             if not per_user:
                 continue
             text = await build_summary(

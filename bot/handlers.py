@@ -88,6 +88,79 @@ def _get_lock(chat_id: int) -> asyncio.Lock:
     return _summary_locks[chat_id]
 
 
+def _username_key(username: str | None) -> str | None:
+    return username.lstrip("@").lower() if username else None
+
+
+def _should_store_author(user: Any, summary_bot_usernames: frozenset[str]) -> bool:
+    if user is None:
+        return False
+    if not user.is_bot:
+        return True
+    username = _username_key(user.username)
+    return username in summary_bot_usernames
+
+
+def _summary_text_from_message(message: Message) -> str | None:
+    if message.text is not None:
+        if message.text.startswith("/"):
+            return None
+        return message.text
+    if message.photo:
+        caption = f" {message.caption}" if message.caption else ""
+        return f"[photo]{caption}"
+    if message.caption and message.caption.startswith("/"):
+        return None
+    caption = f" {message.caption}" if message.caption else ""
+    if message.animation:
+        return f"[animation]{caption}"
+    if message.video:
+        return f"[video]{caption}"
+    if message.document:
+        return f"[document]{caption}"
+    if message.sticker:
+        emoji = f" {message.sticker.emoji}" if message.sticker.emoji else ""
+        return f"[sticker]{emoji}"
+    return None
+
+
+async def _save_summary_message(config: Config, message: Message, text: str) -> None:
+    u = message.from_user
+    if u is None:
+        return
+    logger.debug(
+        "msg chat=%d(%s) user=%d(@%s %s) type=%s: %s",
+        message.chat.id, message.chat.username or message.chat.title,
+        u.id, u.username or "", u.full_name,
+        message.content_type,
+        text[:120],
+    )
+    await save_message(
+        config.db_path,
+        chat_id=message.chat.id,
+        message_id=message.message_id,
+        user_id=u.id,
+        username=u.username,
+        full_name=u.full_name,
+        text=text,
+        ts=int(message.date.timestamp()),
+    )
+
+
+async def _update_summary_message(config: Config, message: Message, text: str) -> None:
+    u = message.from_user
+    if u is None:
+        return
+    logger.debug(
+        "edit chat=%d(%s) user=%d(@%s %s) type=%s: %s",
+        message.chat.id, message.chat.username or message.chat.title,
+        u.id, u.username or "", u.full_name,
+        message.content_type,
+        text[:120],
+    )
+    await update_message(config.db_path, chat_id=message.chat.id, message_id=message.message_id, text=text)
+
+
 async def _extract_ask_image(message: Message, bot: Bot) -> InlineImage | None:
     source = message if message.photo else message.reply_to_message
     if source is None or not source.photo:
@@ -230,86 +303,85 @@ def build_router(config: Config) -> Router:
 
     @router.message(F.chat.type.in_({"group", "supergroup"}), F.text)
     async def on_text(message: Message) -> None:
-        text = message.text
-        if text is None or text.startswith("/") or message.from_user is None:
+        text = _summary_text_from_message(message)
+        if (
+            text is None
+            or not _should_store_author(message.from_user, config.summary_bot_usernames)
+        ):
             return
-        u = message.from_user
-        logger.debug(
-            "msg chat=%d(%s) user=%d(@%s %s): %s",
-            message.chat.id, message.chat.username or message.chat.title,
-            u.id, u.username or "", u.full_name,
-            text[:120],
-        )
-        await save_message(
-            config.db_path,
-            chat_id=message.chat.id,
-            message_id=message.message_id,
-            user_id=u.id,
-            username=u.username,
-            full_name=u.full_name,
-            text=text,
-            ts=int(message.date.timestamp()),
-        )
+        await _save_summary_message(config, message, text)
 
     @router.message(F.chat.type.in_({"group", "supergroup"}), F.photo)
     async def on_photo(message: Message) -> None:
-        if message.from_user is None:
+        text = _summary_text_from_message(message)
+        if (
+            text is None
+            or not _should_store_author(message.from_user, config.summary_bot_usernames)
+        ):
             return
-        if message.caption and message.caption.startswith("/"):
+        await _save_summary_message(config, message, text)
+
+    @router.message(F.chat.type.in_({"group", "supergroup"}), F.from_user.is_bot)
+    async def on_bot_message(message: Message) -> None:
+        text = _summary_text_from_message(message)
+        if text is None:
+            logger.debug(
+                "ignored bot message chat=%d(%s) user=%d(@%s %s) type=%s",
+                message.chat.id, message.chat.username or message.chat.title,
+                message.from_user.id, message.from_user.username or "", message.from_user.full_name,
+                message.content_type,
+            )
             return
-        u = message.from_user
-        caption = f" {message.caption}" if message.caption else ""
-        logger.debug(
-            "photo chat=%d(%s) user=%d(@%s %s)%s",
-            message.chat.id, message.chat.username or message.chat.title,
-            u.id, u.username or "", u.full_name,
-            f" caption={message.caption[:60]}" if message.caption else "",
-        )
-        await save_message(
-            config.db_path,
-            chat_id=message.chat.id,
-            message_id=message.message_id,
-            user_id=u.id,
-            username=u.username,
-            full_name=u.full_name,
-            text=f"[photo]{caption}",
-            ts=int(message.date.timestamp()),
-        )
+        if not _should_store_author(message.from_user, config.summary_bot_usernames):
+            logger.debug(
+                "ignored non-summary bot chat=%d(%s) user=%d(@%s %s) type=%s",
+                message.chat.id, message.chat.username or message.chat.title,
+                message.from_user.id, message.from_user.username or "", message.from_user.full_name,
+                message.content_type,
+            )
+            return
+        await _save_summary_message(config, message, text)
 
     @router.edited_message(F.chat.type.in_({"group", "supergroup"}), F.text)
     async def on_text_edited(message: Message) -> None:
-        text = message.text
-        if text is None or text.startswith("/") or message.from_user is None:
+        text = _summary_text_from_message(message)
+        if (
+            text is None
+            or not _should_store_author(message.from_user, config.summary_bot_usernames)
+        ):
             return
-        u = message.from_user
-        logger.debug(
-            "edit chat=%d(%s) user=%d(@%s %s): %s",
-            message.chat.id, message.chat.username or message.chat.title,
-            u.id, u.username or "", u.full_name,
-            text[:120],
-        )
-        await update_message(config.db_path, chat_id=message.chat.id, message_id=message.message_id, text=text)
+        await _update_summary_message(config, message, text)
 
     @router.edited_message(F.chat.type.in_({"group", "supergroup"}), F.photo)
     async def on_photo_edited(message: Message) -> None:
-        if message.from_user is None:
+        text = _summary_text_from_message(message)
+        if (
+            text is None
+            or not _should_store_author(message.from_user, config.summary_bot_usernames)
+        ):
             return
-        if message.caption and message.caption.startswith("/"):
+        await _update_summary_message(config, message, text)
+
+    @router.edited_message(F.chat.type.in_({"group", "supergroup"}), F.from_user.is_bot)
+    async def on_bot_message_edited(message: Message) -> None:
+        text = _summary_text_from_message(message)
+        if text is None:
+            logger.debug(
+                "ignored edited bot message chat=%d(%s) user=%d(@%s %s) type=%s",
+                message.chat.id, message.chat.username or message.chat.title,
+                message.from_user.id, message.from_user.username or "", message.from_user.full_name,
+                message.content_type,
+            )
             return
-        u = message.from_user
-        caption = f" {message.caption}" if message.caption else ""
-        logger.debug(
-            "edit photo chat=%d(%s) user=%d(@%s %s)%s",
-            message.chat.id, message.chat.username or message.chat.title,
-            u.id, u.username or "", u.full_name,
-            f" caption={message.caption[:60]}" if message.caption else "",
-        )
-        await update_message(
-            config.db_path,
-            chat_id=message.chat.id,
-            message_id=message.message_id,
-            text=f"[photo]{caption}",
-        )
+        if not _should_store_author(message.from_user, config.summary_bot_usernames):
+            logger.debug(
+                "ignored edited non-summary bot chat=%d(%s) user=%d(@%s %s) type=%s",
+                message.chat.id, message.chat.username or message.chat.title,
+                message.from_user.id, message.from_user.username or "", message.from_user.full_name,
+                message.content_type,
+            )
+            return
+        await _update_summary_message(config, message, text)
 
     @router.chat_member(F.new_chat_member.status.in_({"kicked", "banned"}))
     async def on_user_banned(event: ChatMemberUpdated, bot: Bot) -> None:
@@ -337,7 +409,7 @@ async def _send_summary(
     """Build and deliver a summary for `chat_id`. Returns True if a summary was sent."""
     since_ts = int(time.time()) - config.period_seconds
     messages = await get_messages_for_period(config.db_path, chat_id, since_ts)
-    per_user = aggregate_by_user(messages, config.min_words)
+    per_user = aggregate_by_user(messages, config.min_words, config.summary_bot_usernames)
     if not per_user:
         if placeholder is not None:
             await placeholder.edit_text(

@@ -11,5 +11,6 @@ wheels/
 
 .env
 CLAUDE.md
+AGENTS.md
 .DS_Store
 *.db
