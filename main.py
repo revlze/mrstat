@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from bot.config import Config
 from bot.db import init_db
 from bot.handlers import build_router
+from bot.ingest import start_ingest_server, stop_ingest_server
 from bot.scheduler import build_scheduler
 
 
@@ -25,6 +26,7 @@ async def main() -> None:
     load_dotenv()
     config = Config.from_env()
     await init_db(config.db_path)
+    ingest_runner = await start_ingest_server(config)
 
     bot = Bot(token=config.bot_token)
     dispatcher = Dispatcher()
@@ -47,6 +49,7 @@ async def main() -> None:
         ])
     finally:
         scheduler.shutdown(wait=False)
+        await stop_ingest_server(ingest_runner)
         await bot.session.close()
 
 

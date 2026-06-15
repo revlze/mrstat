@@ -47,6 +47,28 @@ Summary generation runs as two parallel model calls: the recap body receives the
 
 Bot messages are ignored by default unless the bot username is listed in `SUMMARY_BOT_USERNAMES` (default: `ainemotronbot`). Use comma-separated usernames without or with `@`.
 
+Telegram Bot API does not deliver normal messages from other bots to this bot. If another bot must appear in summaries, that bot must send its messages out-of-band to this service:
+
+```http
+POST /ingest/message
+Authorization: Bearer <INGEST_TOKEN>
+Content-Type: application/json
+```
+
+```json
+{
+  "chat_id": -1001649599700,
+  "message_id": 978646,
+  "user_id": 123456789,
+  "username": "ainemotronbot",
+  "full_name": "немочка",
+  "text": "только не забудь потом вернуться...",
+  "ts": 1781494509
+}
+```
+
+Set `INGEST_TOKEN` to enable this endpoint. `username` must be listed in `SUMMARY_BOT_USERNAMES`; `chat_id` must be listed in `ALLOWED_CHAT_IDS` when that allowlist is configured.
+
 ## Deploy (Docker)
 
 ```bash

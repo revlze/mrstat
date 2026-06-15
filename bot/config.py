@@ -21,6 +21,9 @@ class Config:
     summary_period_hours: int
     summary_daily_limit: int
     summary_bot_usernames: frozenset[str]
+    ingest_token: str | None
+    ingest_host: str
+    ingest_port: int
     allowed_chat_ids: frozenset[int]
     allowed_user_ids: frozenset[int]
     blocked_user_ids: frozenset[int]
@@ -29,6 +32,10 @@ class Config:
     @property
     def period_seconds(self) -> int:
         return self.summary_period_hours * 3600
+
+    @property
+    def ingest_enabled(self) -> bool:
+        return bool(self.ingest_token)
 
     @classmethod
     def from_env(cls) -> Config:
@@ -71,6 +78,9 @@ class Config:
             summary_period_hours=int(os.getenv("SUMMARY_PERIOD_HOURS", "24")),
             summary_daily_limit=int(os.getenv("SUMMARY_DAILY_LIMIT", "3")),
             summary_bot_usernames=_parse_username_set(os.getenv("SUMMARY_BOT_USERNAMES", "ainemotronbot")),
+            ingest_token=os.getenv("INGEST_TOKEN") or None,
+            ingest_host=os.getenv("INGEST_HOST", "0.0.0.0"),
+            ingest_port=int(os.getenv("INGEST_PORT", "8080")),
             allowed_chat_ids=_parse_int_set(os.getenv("ALLOWED_CHAT_IDS", "")),
             allowed_user_ids=_parse_int_set(os.getenv("ALLOWED_USER_IDS", "")),
             blocked_user_ids=_parse_int_set(os.getenv("BLOCKED_USER_IDS", "")),

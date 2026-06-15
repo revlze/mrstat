@@ -97,6 +97,12 @@ def _should_store_author(user: Any, summary_bot_usernames: frozenset[str]) -> bo
         return False
     if not user.is_bot:
         return True
+    return _is_summary_bot_author(user, summary_bot_usernames)
+
+
+def _is_summary_bot_author(user: Any, summary_bot_usernames: frozenset[str]) -> bool:
+    if user is None or not user.is_bot:
+        return False
     username = _username_key(user.username)
     return username in summary_bot_usernames
 
@@ -125,6 +131,7 @@ def _summary_text_from_message(message: Message) -> str | None:
 
 
 async def _save_summary_message(config: Config, message: Message, text: str) -> None:
+    await _save_replied_summary_bot_message(config, message)
     u = message.from_user
     if u is None:
         return
@@ -148,6 +155,7 @@ async def _save_summary_message(config: Config, message: Message, text: str) -> 
 
 
 async def _update_summary_message(config: Config, message: Message, text: str) -> None:
+    await _save_replied_summary_bot_message(config, message)
     u = message.from_user
     if u is None:
         return
@@ -159,6 +167,39 @@ async def _update_summary_message(config: Config, message: Message, text: str) -
         text[:120],
     )
     await update_message(config.db_path, chat_id=message.chat.id, message_id=message.message_id, text=text)
+
+
+async def _save_replied_summary_bot_message(config: Config, message: Message) -> None:
+    reply = message.reply_to_message
+    if reply is None or not _is_summary_bot_author(reply.from_user, config.summary_bot_usernames):
+        return
+    text = _summary_text_from_message(reply)
+    if text is None:
+        logger.debug(
+            "ignored replied summary bot message chat=%d(%s) user=%d(@%s %s) type=%s",
+            reply.chat.id, reply.chat.username or reply.chat.title,
+            reply.from_user.id, reply.from_user.username or "", reply.from_user.full_name,
+            reply.content_type,
+        )
+        return
+    u = reply.from_user
+    logger.debug(
+        "reply context chat=%d(%s) user=%d(@%s %s) type=%s: %s",
+        reply.chat.id, reply.chat.username or reply.chat.title,
+        u.id, u.username or "", u.full_name,
+        reply.content_type,
+        text[:120],
+    )
+    await save_message(
+        config.db_path,
+        chat_id=reply.chat.id,
+        message_id=reply.message_id,
+        user_id=u.id,
+        username=u.username,
+        full_name=u.full_name,
+        text=text,
+        ts=int(reply.date.timestamp()),
+    )
 
 
 async def _extract_ask_image(message: Message, bot: Bot) -> InlineImage | None:
