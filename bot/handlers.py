@@ -22,6 +22,7 @@ from .db import (
     get_last_summary,
     get_media_group_media,
     get_message_context,
+    get_message_media_between,
     get_message_media_for_ids,
     get_messages_for_period,
     get_summary_calls_today,
@@ -97,6 +98,7 @@ _THINKING_PLACEHOLDERS = [
 
 ASK_REPLY_CONTEXT_BEFORE = 8
 ASK_REPLY_CONTEXT_AFTER = 8
+ASK_REPLY_MEDIA_ID_RADIUS = 30
 MAX_ASK_IMAGES = 10
 
 
@@ -329,13 +331,20 @@ async def _collect_ask_image_refs(
         if reply.media_group_id:
             group_media = await get_media_group_media(db_path, reply.chat.id, reply.media_group_id)
             refs.extend((media.file_id, media.mime_type) for media in group_media)
-        else:
-            media = await get_message_media_for_ids(
-                db_path,
-                reply.chat.id,
-                [item.message_id for item in context_messages],
-            )
-            refs.extend((item.file_id, item.mime_type) for item in media)
+        context_message_ids = [item.message_id for item in context_messages]
+        media = await get_message_media_for_ids(db_path, reply.chat.id, context_message_ids)
+        refs.extend((item.file_id, item.mime_type) for item in media)
+        range_start = max(
+            min(context_message_ids, default=reply.message_id),
+            reply.message_id - ASK_REPLY_MEDIA_ID_RADIUS,
+        )
+        range_end = min(
+            max(context_message_ids, default=reply.message_id),
+            reply.message_id + ASK_REPLY_MEDIA_ID_RADIUS,
+            message.message_id - 1,
+        )
+        range_media = await get_message_media_between(db_path, reply.chat.id, range_start, range_end)
+        refs.extend((item.file_id, item.mime_type) for item in range_media)
         if reply.photo:
             refs.append((reply.photo[-1].file_id, "image/jpeg"))
 
@@ -369,6 +378,7 @@ async def _extract_ask_images(
 ) -> list[InlineImage]:
     images: list[InlineImage] = []
     refs = await _collect_ask_image_refs(db_path, message, context_messages)
+    logger.info("/ask image_refs=%d", len(refs))
     for file_id, mime_type in refs:
         try:
             images.append(await _download_inline_image(bot, file_id, mime_type))
@@ -518,13 +528,13 @@ def build_router(config: Config) -> Router:
 
     @router.message(F.chat.type.in_({"group", "supergroup"}), F.photo)
     async def on_photo(message: Message) -> None:
+        await _save_photo_media(config, message)
         text = _summary_text_from_message(message)
         if (
             text is None
             or not _should_store_author(message.from_user, config.summary_bot_usernames)
         ):
             return
-        await _save_photo_media(config, message)
         await _save_summary_message(config, message, text)
 
     @router.message(F.chat.type.in_({"group", "supergroup"}), F.from_user.is_bot)
@@ -560,13 +570,13 @@ def build_router(config: Config) -> Router:
 
     @router.edited_message(F.chat.type.in_({"group", "supergroup"}), F.photo)
     async def on_photo_edited(message: Message) -> None:
+        await _save_photo_media(config, message)
         text = _summary_text_from_message(message)
         if (
             text is None
             or not _should_store_author(message.from_user, config.summary_bot_usernames)
         ):
             return
-        await _save_photo_media(config, message)
         await _update_summary_message(config, message, text)
 
     @router.edited_message(F.chat.type.in_({"group", "supergroup"}), F.from_user.is_bot)

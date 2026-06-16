@@ -189,6 +189,26 @@ async def get_message_media_for_ids(
     return [StoredMedia(*row) for row in rows]
 
 
+async def get_message_media_between(
+    db_path: str,
+    chat_id: int,
+    start_message_id: int,
+    end_message_id: int,
+) -> list[StoredMedia]:
+    if end_message_id < start_message_id:
+        return []
+    async with aiosqlite.connect(db_path) as conn:
+        cursor = await conn.execute(
+            "SELECT chat_id, message_id, media_type, file_id, media_group_id, mime_type, ts "
+            "FROM message_media "
+            "WHERE chat_id = ? AND message_id BETWEEN ? AND ? "
+            "ORDER BY message_id ASC",
+            (chat_id, start_message_id, end_message_id),
+        )
+        rows = await cursor.fetchall()
+    return [StoredMedia(*row) for row in rows]
+
+
 async def get_media_group_media(
     db_path: str,
     chat_id: int,
