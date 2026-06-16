@@ -41,7 +41,8 @@ If `GEMINI_API_KEY` is empty, `/ask` uses Freemodel/OpenAI-compatible settings. 
 - `/summary` — anyone in the chat can trigger an on-demand recap for the last 24 hours.
 - The same recap fires automatically every day at `SUMMARY_HOUR` in `SUMMARY_TZ` (defaults: 10:00 Europe/Moscow).
 - `/ask <question>` — ask the configured model a one-off question with short per-user history.
-  You can attach a photo with `/ask` in the caption, or reply with `/ask <question>` to a photo.
+  You can attach photos with `/ask` in the caption, or reply with `/ask <question>` to a message/photo.
+  Replies include nearby stored chat messages as context; replies to new photo albums include all stored album photos.
 
 Summary generation runs as two parallel model calls: the recap body receives the full chronological message history with timestamps, while the IQ leaderboard receives messages grouped by user.
 
@@ -81,9 +82,9 @@ The database is stored in a named volume (`db-data`) and survives container rest
 
 ## Photo messages
 
-When a photo is posted, the bot stores only `[photo]` and the caption, if present. It does not save files, Telegram `file_id`s, or image bytes for summaries.
+When a photo is posted, the bot stores `[photo]` plus the caption, if present. It also stores the Telegram `file_id` and `media_group_id` so `/ask` replies can include all photos from a referenced album. It does not store image bytes in SQLite.
 
-For `/ask`, the bot can temporarily download one attached or replied-to photo and send it to the ask model with the question. The image bytes are not stored in SQLite; ask history stores only the question plus an `[image attached]` marker.
+For `/ask`, the bot temporarily downloads attached or replied-to photos and sends them to the ask model with the question. Replied messages also add a short window of nearby stored chat messages to the model prompt. The image bytes are not stored in SQLite; ask history stores only the user question plus an image marker.
 
 ## Configuration
 

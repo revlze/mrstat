@@ -16,7 +16,21 @@ from aiogram.types import ChatMemberUpdated, Message, ReactionTypeEmoji, Telegra
 
 from .analytics import aggregate_by_user, ask_question, build_summary
 from .config import Config
-from .db import delete_user_messages, get_last_summary, get_messages_for_period, get_summary_calls_today, increment_summary_calls, save_last_summary, save_message, update_message
+from .db import (
+    StoredMessage,
+    delete_user_messages,
+    get_last_summary,
+    get_media_group_media,
+    get_message_context,
+    get_message_media_for_ids,
+    get_messages_for_period,
+    get_summary_calls_today,
+    increment_summary_calls,
+    save_last_summary,
+    save_message,
+    save_message_media,
+    update_message,
+)
 from .gemini import InlineImage
 from .logging_sink import chat_ref, log_to_chat
 from .telegram_delivery import html_to_text, send_text_or_document
@@ -80,6 +94,10 @@ _THINKING_PLACEHOLDERS = [
     "loading neurons…",
     "warming up the hamsters…",
 ]
+
+ASK_REPLY_CONTEXT_BEFORE = 8
+ASK_REPLY_CONTEXT_AFTER = 8
+MAX_ASK_IMAGES = 10
 
 
 def _get_lock(chat_id: int) -> asyncio.Lock:
@@ -190,6 +208,7 @@ async def _save_replied_summary_bot_message(config: Config, message: Message) ->
         reply.content_type,
         text[:120],
     )
+    await _save_photo_media(config, reply)
     await save_message(
         config.db_path,
         chat_id=reply.chat.id,
@@ -202,19 +221,160 @@ async def _save_replied_summary_bot_message(config: Config, message: Message) ->
     )
 
 
-async def _extract_ask_image(message: Message, bot: Bot) -> InlineImage | None:
-    source = message if message.photo else message.reply_to_message
-    if source is None or not source.photo:
-        return None
+async def _save_photo_media(config: Config, message: Message) -> None:
+    if not message.photo:
+        return
+    photo = message.photo[-1]
+    await save_message_media(
+        config.db_path,
+        chat_id=message.chat.id,
+        message_id=message.message_id,
+        media_type="photo",
+        file_id=photo.file_id,
+        media_group_id=message.media_group_id,
+        mime_type="image/jpeg",
+        ts=int(message.date.timestamp()),
+    )
 
-    photo = source.photo[-1]
-    file = await bot.get_file(photo.file_id)
+
+def _stored_message_from_live(message: Message) -> StoredMessage | None:
+    text = _summary_text_from_message(message)
+    user = message.from_user
+    if text is None or user is None:
+        return None
+    return StoredMessage(
+        chat_id=message.chat.id,
+        message_id=message.message_id,
+        user_id=user.id,
+        username=user.username,
+        full_name=user.full_name,
+        text=text,
+        ts=int(message.date.timestamp()),
+    )
+
+
+def _display_stored_author(message: StoredMessage) -> str:
+    if message.username:
+        return f"@{message.username}"
+    return message.full_name or str(message.user_id)
+
+
+def _format_ask_reply_context(
+    messages: list[StoredMessage],
+    *,
+    reply_message_id: int,
+    timezone: str,
+) -> str:
+    if not messages:
+        return ""
+    lines = ["Контекст сообщения, на которое ответили командой /ask:"]
+    tz = ZoneInfo(timezone)
+    for item in messages:
+        stamp = datetime.fromtimestamp(item.ts, tz).strftime("%Y-%m-%d %H:%M")
+        marker = " (replied)" if item.message_id == reply_message_id else ""
+        lines.append(f"- {stamp} {_display_stored_author(item)}{marker}: {item.text}")
+    return "\n".join(lines)
+
+
+async def _get_ask_reply_context(
+    config: Config,
+    message: Message,
+) -> tuple[str, list[StoredMessage]]:
+    reply = message.reply_to_message
+    if reply is None:
+        return "", []
+
+    context_messages = await get_message_context(
+        config.db_path,
+        message.chat.id,
+        reply.message_id,
+        before=ASK_REPLY_CONTEXT_BEFORE,
+        after=ASK_REPLY_CONTEXT_AFTER,
+        max_message_id=message.message_id,
+    )
+    if all(item.message_id != reply.message_id for item in context_messages):
+        live = _stored_message_from_live(reply)
+        if live is not None:
+            context_messages.append(live)
+            context_messages.sort(key=lambda item: item.message_id)
+
+    context_text = _format_ask_reply_context(
+        context_messages,
+        reply_message_id=reply.message_id,
+        timezone=config.summary_tz,
+    )
+    return context_text, context_messages
+
+
+def _with_ask_reply_context(question: str, context_text: str) -> str:
+    if not context_text:
+        return question
+    return f"{context_text}\n\nВопрос пользователя:\n{question}"
+
+
+async def _collect_ask_image_refs(
+    db_path: str,
+    message: Message,
+    context_messages: list[StoredMessage],
+) -> list[tuple[str, str]]:
+    refs: list[tuple[str, str]] = []
+    if message.photo:
+        if message.media_group_id:
+            group_media = await get_media_group_media(db_path, message.chat.id, message.media_group_id)
+            refs.extend((media.file_id, media.mime_type) for media in group_media)
+        refs.append((message.photo[-1].file_id, "image/jpeg"))
+
+    reply = message.reply_to_message
+    if reply is not None:
+        if reply.media_group_id:
+            group_media = await get_media_group_media(db_path, reply.chat.id, reply.media_group_id)
+            refs.extend((media.file_id, media.mime_type) for media in group_media)
+        else:
+            media = await get_message_media_for_ids(
+                db_path,
+                reply.chat.id,
+                [item.message_id for item in context_messages],
+            )
+            refs.extend((item.file_id, item.mime_type) for item in media)
+        if reply.photo:
+            refs.append((reply.photo[-1].file_id, "image/jpeg"))
+
+    unique_refs: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for file_id, mime_type in refs:
+        if file_id in seen:
+            continue
+        seen.add(file_id)
+        unique_refs.append((file_id, mime_type))
+        if len(unique_refs) >= MAX_ASK_IMAGES:
+            break
+    return unique_refs
+
+
+async def _download_inline_image(bot: Bot, file_id: str, mime_type: str) -> InlineImage:
+    file = await bot.get_file(file_id)
     if not file.file_path:
         raise RuntimeError("Telegram did not return a file path for the photo")
 
     buffer = BytesIO()
     await bot.download_file(file.file_path, destination=buffer)
-    return InlineImage(data=buffer.getvalue(), mime_type="image/jpeg")
+    return InlineImage(data=buffer.getvalue(), mime_type=mime_type)
+
+
+async def _extract_ask_images(
+    message: Message,
+    bot: Bot,
+    db_path: str,
+    context_messages: list[StoredMessage],
+) -> list[InlineImage]:
+    images: list[InlineImage] = []
+    refs = await _collect_ask_image_refs(db_path, message, context_messages)
+    for file_id, mime_type in refs:
+        try:
+            images.append(await _download_inline_image(bot, file_id, mime_type))
+        except Exception:
+            logger.warning("could not download ask image file_id=%s", file_id, exc_info=True)
+    return images
 
 
 async def _mark_user_message_done(bot: Bot, message: Message) -> None:
@@ -258,17 +418,20 @@ def build_router(config: Config) -> Router:
             return
         placeholder = await message.reply(random.choice(_THINKING_PLACEHOLDERS), allow_sending_without_reply=True)
         try:
-            image = await _extract_ask_image(message, bot)
+            reply_context, context_messages = await _get_ask_reply_context(config, message)
+            ask_text = _with_ask_reply_context(question, reply_context)
+            images = await _extract_ask_images(message, bot, config.db_path, context_messages)
             logger.info(
-                "/ask request chat=%d user=%d provider=%s model=%s images=%d",
+                "/ask request chat=%d user=%d provider=%s model=%s images=%d reply_context_messages=%d",
                 message.chat.id,
                 message.from_user.id if message.from_user else 0,
                 "gemini" if config.gemini_api_key else "openai-compatible",
                 config.gemini_model_ask if config.gemini_api_key else config.llm_model,
-                1 if image else 0,
+                len(images),
+                len(context_messages),
             )
             answer_text, answer_entities, answer_markdown = await ask_question(
-                question,
+                ask_text,
                 chat_id=message.chat.id,
                 user_id=message.from_user.id if message.from_user else 0,
                 db_path=config.db_path,
@@ -278,7 +441,8 @@ def build_router(config: Config) -> Router:
                 timeout=config.llm_timeout,
                 gemini_api_key=config.gemini_api_key,
                 gemini_model_ask=config.gemini_model_ask,
-                images=[image] if image else None,
+                images=images or None,
+                history_question=question,
             )
         except Exception:
             tb = traceback.format_exc()
@@ -360,6 +524,7 @@ def build_router(config: Config) -> Router:
             or not _should_store_author(message.from_user, config.summary_bot_usernames)
         ):
             return
+        await _save_photo_media(config, message)
         await _save_summary_message(config, message, text)
 
     @router.message(F.chat.type.in_({"group", "supergroup"}), F.from_user.is_bot)
@@ -401,6 +566,7 @@ def build_router(config: Config) -> Router:
             or not _should_store_author(message.from_user, config.summary_bot_usernames)
         ):
             return
+        await _save_photo_media(config, message)
         await _update_summary_message(config, message, text)
 
     @router.edited_message(F.chat.type.in_({"group", "supergroup"}), F.from_user.is_bot)

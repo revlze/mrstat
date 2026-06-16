@@ -124,6 +124,7 @@ async def ask_question(
     gemini_api_key: str | None = None,
     gemini_model_ask: str | None = None,
     images: list[InlineImage] | None = None,
+    history_question: str | None = None,
 ) -> tuple[str, list, str]:
     history = await get_ask_history(db_path, chat_id, user_id)
     messages = [
@@ -163,8 +164,11 @@ async def ask_question(
     if not content or not content.strip():
         raise RuntimeError("AI returned empty response")
     now = int(time.time())
-    history_question = f"{question}\n[image attached]" if images else question
-    await append_ask_history(db_path, chat_id, user_id, "user", history_question, now)
+    saved_question = history_question or question
+    if images:
+        marker = "[image attached]" if len(images) == 1 else f"[{len(images)} images attached]"
+        saved_question = f"{saved_question}\n{marker}"
+    await append_ask_history(db_path, chat_id, user_id, "user", saved_question, now)
     await append_ask_history(db_path, chat_id, user_id, "assistant", content, now)
     text, entities = telegramify_markdown.convert(content)
     text, entities = _as_expandable_quote(text, entities)

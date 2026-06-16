@@ -1,4 +1,5 @@
 import re
+import logging
 from html.parser import HTMLParser
 
 from aiogram import Bot
@@ -8,6 +9,7 @@ from aiogram.types import BufferedInputFile, Message
 
 
 TELEGRAM_TEXT_LIMIT = 4096
+logger = logging.getLogger(__name__)
 
 
 class _TextExtractor(HTMLParser):
@@ -37,6 +39,68 @@ def _is_message_too_long_error(exc: TelegramBadRequest) -> bool:
     return bool(re.search(r"message[_ ]too[_ ]long", str(exc), re.IGNORECASE))
 
 
+def _is_edit_target_missing_error(exc: TelegramBadRequest) -> bool:
+    return bool(re.search(r"message to edit not found", str(exc), re.IGNORECASE))
+
+
+async def _send_message_or_reply(
+    bot: Bot,
+    chat_id: int,
+    text: str,
+    *,
+    reply_to: Message | None = None,
+    entities: list | None = None,
+    parse_mode: ParseMode | str | None = None,
+) -> Message:
+    if reply_to is not None:
+        return await reply_to.reply(
+            text,
+            entities=entities,
+            parse_mode=parse_mode,
+            allow_sending_without_reply=True,
+        )
+    return await bot.send_message(chat_id, text, entities=entities, parse_mode=parse_mode)
+
+
+async def _edit_placeholder_or_send(
+    bot: Bot,
+    chat_id: int,
+    text: str,
+    *,
+    placeholder: Message | None = None,
+    reply_to: Message | None = None,
+    entities: list | None = None,
+    parse_mode: ParseMode | str | None = None,
+) -> Message:
+    if placeholder is None:
+        return await _send_message_or_reply(
+            bot,
+            chat_id,
+            text,
+            reply_to=reply_to,
+            entities=entities,
+            parse_mode=parse_mode,
+        )
+    try:
+        return await placeholder.edit_text(text, entities=entities, parse_mode=parse_mode)
+    except TelegramBadRequest as exc:
+        if not _is_edit_target_missing_error(exc):
+            raise
+        logger.info(
+            "placeholder message is unavailable; sending a new message chat=%d placeholder=%d",
+            chat_id,
+            placeholder.message_id,
+        )
+        return await _send_message_or_reply(
+            bot,
+            chat_id,
+            text,
+            reply_to=reply_to,
+            entities=entities,
+            parse_mode=parse_mode,
+        )
+
+
 async def send_text_or_document(
     bot: Bot,
     chat_id: int,
@@ -51,18 +115,27 @@ async def send_text_or_document(
 ) -> Message:
     if _utf16_len(text) <= TELEGRAM_TEXT_LIMIT:
         try:
-            if placeholder is not None:
-                return await placeholder.edit_text(text, entities=entities, parse_mode=parse_mode)
-            return await bot.send_message(chat_id, text, entities=entities, parse_mode=parse_mode)
+            return await _edit_placeholder_or_send(
+                bot,
+                chat_id,
+                text,
+                placeholder=placeholder,
+                reply_to=reply_to,
+                entities=entities,
+                parse_mode=parse_mode,
+            )
         except TelegramBadRequest as exc:
             if not _is_message_too_long_error(exc):
                 raise
 
     notice = "Ответ не влез в лимит Telegram-сообщения. Полный текст приложил файлом."
-    if placeholder is not None:
-        notice_message = await placeholder.edit_text(notice)
-    else:
-        notice_message = await bot.send_message(chat_id, notice)
+    notice_message = await _edit_placeholder_or_send(
+        bot,
+        chat_id,
+        notice,
+        placeholder=placeholder,
+        reply_to=reply_to,
+    )
 
     full_text = document_text if document_text is not None else text
     document = BufferedInputFile(full_text.encode("utf-8"), filename=filename)
