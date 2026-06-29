@@ -326,14 +326,14 @@ def _format_telegram(data: dict) -> str:
     parts = ["📊 Саммари за сутки"]
 
     if summary_text:
-        parts.append(html.expandable_blockquote(summary_text))
+        parts.append(html.expandable_blockquote(_disable_mentions(summary_text)))
     elif data.get("summary_error"):
         parts.append(html.expandable_blockquote("Обзор временно не собрался: модель не ответила вовремя."))
 
     iq_lines = ["🧠 IQ-рейтинг:"]
     if users_sorted:
         for index, user in enumerate(users_sorted, 1):
-            name = html.quote((user.get("name") or "???").replace("@", "@​"))
+            name = html.quote(_disable_mentions(user.get("name") or "???"))
             iq = user.get("iq", "???")
             comment = (user.get("comment") or "").strip()
             suffix = f" · {html.quote(comment)}" if comment else ""
@@ -341,9 +341,11 @@ def _format_telegram(data: dict) -> str:
     elif data.get("iq_error"):
         iq_lines.append("Временно не собрался: модель не ответила вовремя.")
     parts.append(html.expandable_blockquote("\n".join(iq_lines)))
-
-    parts.append("\n#summary")
     return "\n\n".join(parts)
+
+
+def _disable_mentions(text: str) -> str:
+    return text.replace("@", "@\u200b")
 
 
 def _as_expandable_quote(text: str, entities: list) -> tuple[str, list[TgEntity]]:
