@@ -7,6 +7,7 @@ import telegramify_markdown
 
 from aiogram import html
 from aiogram.types import MessageEntity as TgEntity
+from openai import APIStatusError
 
 import time
 
@@ -132,6 +133,7 @@ async def ask_question(
         *history,
         {"role": "user", "content": question},
     ]
+    used_images = bool(images)
     if gemini_api_key:
         ask_model = gemini_model_ask or "gemini-2.5-pro"
         logger.info(
@@ -153,26 +155,65 @@ async def ask_question(
             model,
             len(images or []),
         )
-        content = await openai_vision_chat_completion(
-            api_key=api_key,
-            base_url=base_url,
-            model=model,
-            messages=messages,
-            images=images,
-            timeout=timeout,
-        )
+        try:
+            content = await openai_vision_chat_completion(
+                api_key=api_key,
+                base_url=base_url,
+                model=model,
+                messages=messages,
+                images=images,
+                timeout=timeout,
+            )
+        except APIStatusError as exc:
+            if not (images and _is_image_input_rejected(exc)):
+                raise
+            logger.warning(
+                "/ask provider=openai-compatible model=%s rejected image input; retrying without images",
+                model,
+                exc_info=True,
+            )
+            used_images = False
+            content = await openai_vision_chat_completion(
+                api_key=api_key,
+                base_url=base_url,
+                model=model,
+                messages=messages,
+                images=None,
+                timeout=timeout,
+            )
     if not content or not content.strip():
         raise RuntimeError("AI returned empty response")
     now = int(time.time())
     saved_question = history_question or question
-    if images:
+    if used_images:
         marker = "[image attached]" if len(images) == 1 else f"[{len(images)} images attached]"
         saved_question = f"{saved_question}\n{marker}"
+    elif images:
+        saved_question = f"{saved_question}\n[image omitted: model did not support image input]"
     await append_ask_history(db_path, chat_id, user_id, "user", saved_question, now)
     await append_ask_history(db_path, chat_id, user_id, "assistant", content, now)
     text, entities = telegramify_markdown.convert(content)
     text, entities = _as_expandable_quote(text, entities)
     return text, entities, content
+
+
+def _is_image_input_rejected(exc: APIStatusError) -> bool:
+    if exc.status_code not in {400, 404, 422}:
+        return False
+    body = getattr(exc, "body", None)
+    message = getattr(exc, "message", "")
+    text = f"{message} {body} {exc}".lower()
+    image_markers = ("image", "image_url", "vision")
+    rejection_markers = (
+        "no endpoints",
+        "not support",
+        "not supported",
+        "unsupported",
+        "support image input",
+    )
+    return any(marker in text for marker in image_markers) and any(
+        marker in text for marker in rejection_markers
+    )
 
 
 def _strip_response_fence(content: str) -> str:
@@ -341,6 +382,7 @@ def _format_telegram(data: dict) -> str:
     elif data.get("iq_error"):
         iq_lines.append("Временно не собрался: модель не ответила вовремя.")
     parts.append(html.expandable_blockquote("\n".join(iq_lines)))
+    parts.append("#summary")
     return "\n\n".join(parts)
 
 
