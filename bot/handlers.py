@@ -101,6 +101,11 @@ ASK_REPLY_MEDIA_ID_RADIUS = 30
 MAX_ASK_IMAGES = 10
 
 
+def _wrap_ask_answer_markdown(markdown: str) -> str:
+    quoted = "\n".join(f"> {line}" if line else ">" for line in markdown.strip().splitlines())
+    return f"<details><summary>Ответ</summary>\n\n{quoted}\n</details>"
+
+
 def _get_lock(chat_id: int) -> asyncio.Lock:
     if chat_id not in _summary_locks:
         _summary_locks[chat_id] = asyncio.Lock()
@@ -461,7 +466,7 @@ def build_router(config: Config) -> Router:
         await send_rich_or_document(
             bot,
             message.chat.id,
-            InputRichMessage(markdown=answer_markdown, skip_entity_detection=True),
+            InputRichMessage(markdown=_wrap_ask_answer_markdown(answer_markdown), skip_entity_detection=True),
             placeholder=placeholder,
             reply_to=message,
             fallback_text=answer_markdown,
