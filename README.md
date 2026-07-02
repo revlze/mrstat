@@ -1,6 +1,6 @@
 # Mr. Stat
 
-Telegram bot that watches a group chat, stores messages in SQLite, and posts an AI-generated recap with an IQ leaderboard. Users with fewer than `MIN_WORDS` words in the period are skipped from the leaderboard, except allowlisted bot usernames from `SUMMARY_BOT_USERNAMES`.
+Vibe-coded Telegram bot that watches a group chat, stores messages in SQLite, and posts an AI-generated recap with an IQ leaderboard. Users with fewer than `MIN_WORDS` words in the period are skipped from the leaderboard, except allowlisted bot usernames from `SUMMARY_BOT_USERNAMES`.
 
 ## Setup
 
