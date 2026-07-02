@@ -1,6 +1,6 @@
 # Mr. Stat
 
-Telegram bot that watches a group chat, stores messages in SQLite, and posts an AI-generated recap with a satirical IQ leaderboard. Photo messages are stored as a `[photo]` marker plus caption, without downloading or analyzing the image itself. Users with fewer than `MIN_WORDS` words in the period are skipped from the leaderboard, except allowlisted bot usernames from `SUMMARY_BOT_USERNAMES`.
+Telegram bot that watches a group chat, stores messages in SQLite, and posts an AI-generated recap with an IQ leaderboard. Users with fewer than `MIN_WORDS` words in the period are skipped from the leaderboard, except allowlisted bot usernames from `SUMMARY_BOT_USERNAMES`.
 
 ## Setup
 
@@ -12,29 +12,36 @@ uv run python main.py
 
 Add the bot to a group **as an admin** so it can read messages (Telegram bots get group messages only when they are admins or have privacy mode disabled via @BotFather).
 
+If the bot should see messages from other bots, enable Bot-to-Bot Communication Mode for it in @BotFather: https://core.telegram.org/bots/features#bot-to-bot-communication. In groups, the bot must also be an admin or have Group Privacy Mode disabled to receive all bot messages without explicit mentions or replies.
+
 ## AI Providers
 
-`/summary` uses an OpenAI-compatible chat-completions API by default. `/ask` uses Gemini when `GEMINI_API_KEY` is set, otherwise it falls back to the same OpenAI-compatible provider. For Freemodel, use the values from the dashboard:
+The bot supports OpenAI-compatible chat-completions providers and Gemini.
+
+OpenAI-compatible providers are the default for `/summary` and the fallback for `/ask`. Priority: `OPENAI_*`, then `FREEMODEL_*`, then `OPENROUTER_*`.
 
 ```env
+OPENAI_API_KEY=...
+OPENAI_BASE_URL=https://api.example.com/v1
+OPENAI_MODEL=...
+
+# Or Freemodel:
 FREEMODEL_API_KEY=...
 FREEMODEL_BASE_URL=https://api.freemodel.dev
 FREEMODEL_MODEL=gpt-5.5
-GEMINI_MODEL_SUMMARY=
 ```
 
-`OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_MODEL` can be used instead for any OpenAI-compatible provider. If neither `OPENAI_*` nor `FREEMODEL_*` is set, the bot falls back to `OPENROUTER_*`.
-
-Gemini is optional for `/ask` and as a `/summary` override:
+Gemini is enabled separately:
 
 ```env
 GEMINI_API_KEY=...
 GEMINI_MODEL_ASK=gemini-2.5-pro
+GEMINI_MODEL_SUMMARY=
 ```
 
-If `GEMINI_API_KEY` is empty, `/ask` uses Freemodel/OpenAI-compatible settings. If `GEMINI_MODEL_SUMMARY` and `GEMINI_API_KEY` are both set, summaries use Gemini too. Otherwise summaries use Freemodel/OpenAI-compatible settings.
+With `GEMINI_API_KEY`, `/ask` uses Gemini. Set `GEMINI_MODEL_SUMMARY` too if `/summary` should use Gemini; leave it empty to keep summaries on the OpenAI-compatible provider.
 
-`LLM_TIMEOUT_SECONDS` controls the timeout for OpenAI-compatible summary requests. The default is `180`.
+`LLM_TIMEOUT_SECONDS` controls OpenAI-compatible requests. The default is `180`.
 
 ## Commands
 
@@ -47,28 +54,6 @@ If `GEMINI_API_KEY` is empty, `/ask` uses Freemodel/OpenAI-compatible settings. 
 Summary generation runs as two parallel model calls: the recap body receives the full chronological message history with timestamps, while the IQ leaderboard receives messages grouped by user.
 
 Bot messages are ignored by default unless the bot username is listed in `SUMMARY_BOT_USERNAMES` (default: `ainemotronbot`). Use comma-separated usernames without or with `@`.
-
-Telegram Bot API does not deliver normal messages from other bots to this bot. If another bot must appear in summaries, that bot must send its messages out-of-band to this service:
-
-```http
-POST /ingest/message
-Authorization: Bearer <INGEST_TOKEN>
-Content-Type: application/json
-```
-
-```json
-{
-  "chat_id": -1001649599700,
-  "message_id": 978646,
-  "user_id": 123456789,
-  "username": "ainemotronbot",
-  "full_name": "немочка",
-  "text": "только не забудь потом вернуться...",
-  "ts": 1781494509
-}
-```
-
-Set `INGEST_TOKEN` to enable this endpoint. `username` must be listed in `SUMMARY_BOT_USERNAMES`; `chat_id` must be listed in `ALLOWED_CHAT_IDS` when that allowlist is configured.
 
 ## Deploy (Docker)
 
@@ -85,7 +70,3 @@ The database is stored in a named volume (`db-data`) and survives container rest
 When a photo is posted, the bot stores `[photo]` plus the caption, if present. It also stores the Telegram `file_id` and `media_group_id` so `/ask` replies can include all photos from a referenced album. It does not store image bytes in SQLite.
 
 For `/ask`, the bot temporarily downloads attached or replied-to photos and sends them to the ask model with the question. Replied messages also add a short window of nearby stored chat messages to the model prompt. The image bytes are not stored in SQLite; ask history stores only the user question plus an image marker.
-
-## Configuration
-
-All settings come from environment variables, see `.env.example`. The summary model must support chat completions and JSON-object responses.
