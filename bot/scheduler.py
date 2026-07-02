@@ -6,12 +6,13 @@ from zoneinfo import ZoneInfo
 from aiogram import Bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from aiogram.types import InputRichMessage
 
 from .analytics import aggregate_by_user, build_summary
 from .config import Config
 from .db import delete_old_messages, get_active_chat_ids, get_messages_for_period
 from .logging_sink import chat_ref, log_to_chat
-from .telegram_delivery import html_to_text, send_text_or_document
+from .telegram_delivery import html_to_text, send_rich_or_document
 
 
 logger = logging.getLogger(__name__) # 24 hours
@@ -58,13 +59,14 @@ async def run_summary_for_all_chats(bot: Bot, config: Config) -> None:
                 gemini_api_key=config.gemini_api_key,
                 gemini_model=config.gemini_model,
             )
-            await send_text_or_document(
+            document_text = html_to_text(text)
+            await send_rich_or_document(
                 bot,
                 chat_id,
-                text,
-                parse_mode="HTML",
+                InputRichMessage(html=text, skip_entity_detection=True),
+                fallback_text=document_text,
                 filename="summary.md",
-                document_text=html_to_text(text),
+                document_text=document_text,
             )
             await log_to_chat(
                 bot, config.logs_chat_id, f"daily summary in {chat_ref(chat_id, chat_username)}:\n{text}"

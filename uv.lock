@@ -13,7 +13,7 @@ wheels = [
 
 [[package]]
 name = "aiogram"
-version = "3.27.0"
+version = "3.29.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiofiles" },
@@ -23,9 +23,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b5/09/4bfeb0314b4d78739fc7c3cdcaa77eacaeb089312d9c16f3eb538d0f0f97/aiogram-3.27.0.tar.gz", hash = "sha256:ed5fd6b40d80a6cdb215ab162c9bd9d9b7892fb2710b45e3b762a98c21119297", size = 1753647, upload-time = "2026-04-03T22:57:00.39Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/02/fc/16efb82a4a27c3046ba79614727371bd155d4df2b8919f4ce6df31f0e9ec/aiogram-3.29.1.tar.gz", hash = "sha256:7ac92c64b71d33eb8e3656de4517a1533a88b61728e5dd00b1e11393b669b521", size = 1903827, upload-time = "2026-07-01T23:43:31.805Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/aa/1f/64c4a9428d15ccea5aa7b204fd53061b94407640d6b075cd61c38899dd53/aiogram-3.27.0-py3-none-any.whl", hash = "sha256:26a091b6266d87db514e02703072035e7c17feebef480f927083bcfb22f634a3", size = 727326, upload-time = "2026-04-03T22:56:58.427Z" },
+    { url = "https://files.pythonhosted.org/packages/75/bd/27556763072b5b4df006e20afc14f4f750c06b796edbef95df7e489e6e6f/aiogram-3.29.1-py3-none-any.whl", hash = "sha256:63cd0123e8ab065f78974ad58ff57c1a5c8c35aac1055761859c4a5ad27eaf04", size = 804448, upload-time = "2026-07-01T23:43:30.19Z" },
 ]
 
 [[package]]
@@ -487,19 +487,17 @@ dependencies = [
     { name = "google-genai" },
     { name = "openai" },
     { name = "python-dotenv" },
-    { name = "telegramify-markdown" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "aiogram", specifier = ">=3.27.0" },
+    { name = "aiogram", specifier = ">=3.29.0" },
     { name = "aiohttp", specifier = ">=3.13.5" },
     { name = "aiosqlite", specifier = ">=0.22.1" },
     { name = "apscheduler", specifier = ">=3.11.2" },
     { name = "google-genai", specifier = ">=2.0.1" },
     { name = "openai", specifier = ">=2.0.0" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
-    { name = "telegramify-markdown", specifier = ">=1.1.5" },
 ]
 
 [[package]]
@@ -690,67 +688,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pyromark"
-version = "0.9.10"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/90/d1/79622b7d164490a02066a74e4a710d931c1252aea225640bd4453cce2310/pyromark-0.9.10.tar.gz", hash = "sha256:87a2a8e01e4214014a5697f87c9afd3563e2e2623e2926d97e9535651cae2c07", size = 9066, upload-time = "2026-03-22T12:47:18.26Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/2f/70/13a06c4fc45665e6dde0b248f8564bb203825e08cfbc0478014b5b8ebe17/pyromark-0.9.10-cp314-cp314-macosx_10_12_x86_64.whl", hash = "sha256:94d01f562ff8a54fc406bc29979d2b11189998eb76e174328ca8cfa4a9b90e94", size = 346541, upload-time = "2026-03-22T12:45:10.105Z" },
-    { url = "https://files.pythonhosted.org/packages/63/bc/ccb70805ec1fe2cfeb558154b7b85be812e32af8b65ea9e6f83590abb3dc/pyromark-0.9.10-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:5cc2c96def6e49b3cb0677dffc744f6f3a24b42726cafa80bb8b072265ffa97b", size = 329370, upload-time = "2026-03-22T12:45:56.913Z" },
-    { url = "https://files.pythonhosted.org/packages/23/3b/104d5d8f75717be901587ca9df55ad9b08a5b42aa1dcce492b608e65f8cb/pyromark-0.9.10-cp314-cp314-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:2c00265b0d5196dfdf89a744dc9a3602d0dff3cf4ee231a07b00e9ffc615b089", size = 362589, upload-time = "2026-03-22T12:43:48.789Z" },
-    { url = "https://files.pythonhosted.org/packages/79/36/bb5232f3c5368f26c03f5ea9b906f35550a6c2c2c06526e1b06e27f1bba0/pyromark-0.9.10-cp314-cp314-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:09b14ce543da03fe3a5f4466a5fe2c456a1f59b3834e350de7b2dc16bc7e5440", size = 361138, upload-time = "2026-03-22T12:43:56.886Z" },
-    { url = "https://files.pythonhosted.org/packages/3e/ec/2791c257ef50cc51755b7aea73c1a71f5132e5d8e9629e64207a6a03229b/pyromark-0.9.10-cp314-cp314-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:53fc86c5089e5f62585a5262eec86d7006d1fa4b36211e8f7456d8853aa73622", size = 386461, upload-time = "2026-03-22T12:43:00.301Z" },
-    { url = "https://files.pythonhosted.org/packages/dd/93/d77635523eedba395e35ba3fb84ad32bd030a868b2d5027cb3dac1d6c8bf/pyromark-0.9.10-cp314-cp314-manylinux_2_17_ppc64.manylinux2014_ppc64.whl", hash = "sha256:f4608eed63b0a490366f9197a4c518eb852c8084a43b0762de3603d8b687f055", size = 418428, upload-time = "2026-03-22T12:44:38.495Z" },
-    { url = "https://files.pythonhosted.org/packages/ea/c6/84524aaf65d33e43df2be97e37e22b170772e3ba1f48744982c9923b90e0/pyromark-0.9.10-cp314-cp314-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:6613e8321523e60f1427ea29061dede8333f77631bd6978898f69eac80ec3e29", size = 408915, upload-time = "2026-03-22T12:47:38.341Z" },
-    { url = "https://files.pythonhosted.org/packages/06/d3/e5a79b7127fbefa8fdce1a4b3095fb95b5cb61a6f621a60965fe07d8a93f/pyromark-0.9.10-cp314-cp314-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:8f08e75cb1286476c4c67a691a4140d4022fdd4758158dfaf280eb7eefdc5edd", size = 450282, upload-time = "2026-03-22T12:43:52.915Z" },
-    { url = "https://files.pythonhosted.org/packages/69/f5/d626c2c27a1d09979b1e5228525e4d6d0b83e7c24641d0d7a477165e46e8/pyromark-0.9.10-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:60555b9bddc10f519854396dfa20922376fe90104cab9360608c13524aab641d", size = 370879, upload-time = "2026-03-22T12:43:28.999Z" },
-    { url = "https://files.pythonhosted.org/packages/1d/2c/46f2be6f3021018a2e1199c02495b9d45f023b4874aac385ca229269e981/pyromark-0.9.10-cp314-cp314-manylinux_2_28_aarch64.whl", hash = "sha256:a999f18b6d2c7aaf2b810444226f1929c6165af63e540cc10cfb45427712d25c", size = 363263, upload-time = "2026-03-22T12:45:13.703Z" },
-    { url = "https://files.pythonhosted.org/packages/44/0d/155555a3773eedc45839042221d9be7ee9fa689d053c83237f802d1fe038/pyromark-0.9.10-cp314-cp314-manylinux_2_28_armv7l.whl", hash = "sha256:3356dcf0f926edea50400ba906493923551e64fb3ad60bfa464e570affe8eced", size = 361156, upload-time = "2026-03-22T12:44:33.977Z" },
-    { url = "https://files.pythonhosted.org/packages/7a/cc/fbafd7adeeaac1bfa0f223e19094a9dfc22981bbb513404d2eab0d41fffb/pyromark-0.9.10-cp314-cp314-manylinux_2_28_i686.whl", hash = "sha256:7166158bf9f6e9887c7d78ca15d0ba5d467198c36460b3067f8d04c05e46a7bb", size = 386852, upload-time = "2026-03-22T12:43:07.417Z" },
-    { url = "https://files.pythonhosted.org/packages/d0/7a/3dad5173e56ab627b842a164640702352ddd72fed44f680e470ac3685a1b/pyromark-0.9.10-cp314-cp314-manylinux_2_28_ppc64le.whl", hash = "sha256:5f6667f5f6eb271a60f7e33afceb352b949cd914dfcd36ac409bc2bb54a4733e", size = 409029, upload-time = "2026-03-22T12:45:46.748Z" },
-    { url = "https://files.pythonhosted.org/packages/4e/4a/c821cd96796f084b4be97e3bd3235c7b5e6ec4de6344db90dc73e97fbce3/pyromark-0.9.10-cp314-cp314-manylinux_2_28_s390x.whl", hash = "sha256:4f7d5907733b08fb1c37ac2188a99e7576b4ff833865da9032463935a3715b4e", size = 450565, upload-time = "2026-03-22T12:47:59.265Z" },
-    { url = "https://files.pythonhosted.org/packages/df/92/e80ffbda699f761bec5fd0c58043ddbbe7bdbec35a199a471b97e9192695/pyromark-0.9.10-cp314-cp314-manylinux_2_28_x86_64.whl", hash = "sha256:a446ee22bc5430e667ec4abbc8daf7a6811ed5d61f0a87215af417c4ab2cd328", size = 371130, upload-time = "2026-03-22T12:46:49.769Z" },
-    { url = "https://files.pythonhosted.org/packages/4a/69/4a7ea487efc4734951286df570bcd6316152d64cdbdce7a0d32348f32579/pyromark-0.9.10-cp314-cp314-manylinux_2_31_riscv64.whl", hash = "sha256:47d70ec0405bc47e661b151104c2ebab5455c1b93326ef4756a782bd84aa41db", size = 371905, upload-time = "2026-03-22T12:43:24.938Z" },
-    { url = "https://files.pythonhosted.org/packages/02/54/52720922cd0c9f98b3e52585d440f50288fbcafee133a508a29ca595b68b/pyromark-0.9.10-cp314-cp314-musllinux_1_2_aarch64.whl", hash = "sha256:706a11371fd5eabbe78c7eaade837868c070d0bb20be216ecd27dcb832ccbc47", size = 540391, upload-time = "2026-03-22T12:43:46.344Z" },
-    { url = "https://files.pythonhosted.org/packages/bd/37/c4554802798edde50e8364c63182832b198abec9d97720fd36ca87cae5ca/pyromark-0.9.10-cp314-cp314-musllinux_1_2_armv7l.whl", hash = "sha256:838841ff13ea93742318b4e2396dc0f445ad295e0aca62404b4e2a801645fefc", size = 637637, upload-time = "2026-03-22T12:43:18.24Z" },
-    { url = "https://files.pythonhosted.org/packages/43/dd/99eaa1eee23c2dbf7ab475c7f44e9cb70586f2373a9727f6e75e451e7bbf/pyromark-0.9.10-cp314-cp314-musllinux_1_2_i686.whl", hash = "sha256:b8bed724baef6ee5adf2fadf9226a598749882254337a9ea769b44b00a18725c", size = 604527, upload-time = "2026-03-22T12:47:01.763Z" },
-    { url = "https://files.pythonhosted.org/packages/67/3e/e930312b3c18ea02dc10691e1156b130d7bf03afffb1ca57384d4f9d944e/pyromark-0.9.10-cp314-cp314-musllinux_1_2_ppc64le.whl", hash = "sha256:dbb1566788a2e5d53ca21e00fe6cf69b70b9ed2c8f690b0c389d6c67e7398fe5", size = 539457, upload-time = "2026-03-22T12:45:02.895Z" },
-    { url = "https://files.pythonhosted.org/packages/69/b6/5f22b048e2aa9adb7afd2431fb4b6e561e3a9912812c348798c1515f1bf3/pyromark-0.9.10-cp314-cp314-musllinux_1_2_riscv64.whl", hash = "sha256:88aba6fedac5b9f4f44240a10321a937fdd374ee7197a78c231eadb694ceaab5", size = 546052, upload-time = "2026-03-22T12:43:51.441Z" },
-    { url = "https://files.pythonhosted.org/packages/7a/6f/6670aa0f861c51df6cae4322658fc90d307d54043ce0b53b8f24018c2a0e/pyromark-0.9.10-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:369a20d208acb7b5dde8c7512e4464d0bc6a8e53ef07dc9007ac885404cb85d7", size = 590284, upload-time = "2026-03-22T12:46:00.898Z" },
-    { url = "https://files.pythonhosted.org/packages/23/f7/d7bfb15d0e95c33f0b95caa9b349b99b479a5cbbdb54f4d1d70d6fc1ed3c/pyromark-0.9.10-cp314-cp314-win32.whl", hash = "sha256:d63eec43df5a436c252dd8aafbb939f22fe3d5fadb62c43c34c33544576de730", size = 260700, upload-time = "2026-03-22T12:43:14.571Z" },
-    { url = "https://files.pythonhosted.org/packages/5b/13/5a7f2a43776c06e89479580f2239eff39d76ae811dbabe7123e16454cb3d/pyromark-0.9.10-cp314-cp314-win_amd64.whl", hash = "sha256:8cff3c5394127e4b89928b3c38a5a27fc28bf45a28cfd94554e0eae4aab9d949", size = 273208, upload-time = "2026-03-22T12:44:29.41Z" },
-    { url = "https://files.pythonhosted.org/packages/30/9d/36bfd3da4ac10287c6112d259f1c34a5fc6fb3da53b1bf392440608e414d/pyromark-0.9.10-cp314-cp314-win_arm64.whl", hash = "sha256:00c92b76ef117e7b78f966a5607748990e2fd168a71bb0509df0270fad106204", size = 258954, upload-time = "2026-03-22T12:46:41.169Z" },
-    { url = "https://files.pythonhosted.org/packages/e3/bb/5a9136f50748656bf53391df524157d5e3cca7188fd00ca3f7aec1f011b7/pyromark-0.9.10-cp314-cp314t-macosx_10_12_x86_64.whl", hash = "sha256:e994e6b010d62293130c30fb8fa25415a6e7a5940052f92b675d1b4e3334c968", size = 345113, upload-time = "2026-03-22T12:45:31.615Z" },
-    { url = "https://files.pythonhosted.org/packages/b1/9b/7c484479541b978f76f5547598f7cf741aa918508bc7d2d4aa795fa56bcd/pyromark-0.9.10-cp314-cp314t-macosx_11_0_arm64.whl", hash = "sha256:339140de786303d0703f114b4a575d837b52df62bff927a03763d38aaeae93c2", size = 328128, upload-time = "2026-03-22T12:43:30.427Z" },
-    { url = "https://files.pythonhosted.org/packages/89/2a/1683c462a8308fdb0f88cb17f0e7f5f8cad7eda8235df8bf4ffc77bd7ff2/pyromark-0.9.10-cp314-cp314t-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:898d705905056159d63a10355bbc20e60e4f2a595f6aca3eaeebdecad533f15e", size = 361106, upload-time = "2026-03-22T12:44:02.486Z" },
-    { url = "https://files.pythonhosted.org/packages/14/b8/44c1d373a4ac682cf08f5346636fcd5810d438d03de1f24a9ea636b41441/pyromark-0.9.10-cp314-cp314t-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:e3f32f704c185489329c5f8b374ea3e0cfbf5a130b66450a4a2369d028bab674", size = 359208, upload-time = "2026-03-22T12:44:16.195Z" },
-    { url = "https://files.pythonhosted.org/packages/2e/8b/8c82e2cb52a4f0855fe72c3defa9ffb7656bf2b29e031fd50b11b1c12127/pyromark-0.9.10-cp314-cp314t-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:b5015d8b169e0039959c39d5715d1fc419b9800dc544e60d50b04e8cd19c8623", size = 384654, upload-time = "2026-03-22T12:42:39.493Z" },
-    { url = "https://files.pythonhosted.org/packages/86/44/c212870714378038be8a2284eeaf6f402e49fc66b6e66145ab0811b17df3/pyromark-0.9.10-cp314-cp314t-manylinux_2_17_ppc64.manylinux2014_ppc64.whl", hash = "sha256:27fa2a36bfcc2a16d6b28a5839be471f18c5e780f70642e5cf8a2ffa8985d1a0", size = 416113, upload-time = "2026-03-22T12:42:58.993Z" },
-    { url = "https://files.pythonhosted.org/packages/41/97/8f3015c15f14dcda13026410d847db6e845afef297aee6f4e97f9ba9a17b/pyromark-0.9.10-cp314-cp314t-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:b3e92bdfb9ac46a829fe605ebc8516ca0b2af30cd6f55710bc1840dcd904abba", size = 406520, upload-time = "2026-03-22T12:47:13.468Z" },
-    { url = "https://files.pythonhosted.org/packages/af/37/0f576a466b4ea5d4b6c351686ecb9737130cbf17a9ffcab181a0c043581f/pyromark-0.9.10-cp314-cp314t-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:dc7761df494e42444de2720398d511e69200c69dee4825717b34084a3438f407", size = 447975, upload-time = "2026-03-22T12:45:33.327Z" },
-    { url = "https://files.pythonhosted.org/packages/84/c5/e8dd51d416dbbca5c69338dea70622aa38d24b23e4b6b1296f67c4663ed8/pyromark-0.9.10-cp314-cp314t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:88554879a603c1b12451507e80133ee7496aa31bb91e32a4c203df7a75e77d01", size = 369190, upload-time = "2026-03-22T12:43:47.557Z" },
-    { url = "https://files.pythonhosted.org/packages/4b/3f/4791c4aab3f25552be92437df1dc29805740abafe8c0b4010a3ae59bf5df/pyromark-0.9.10-cp314-cp314t-manylinux_2_28_aarch64.whl", hash = "sha256:3565ad65a60ea637558d1a11c69a3aa1f0e089f4c74cc8da3466154a77513a32", size = 361852, upload-time = "2026-03-22T12:47:23.156Z" },
-    { url = "https://files.pythonhosted.org/packages/cd/ca/22d3ae1e7553425652c18459922182cdb465e4a68e2211f2a10f3597c00b/pyromark-0.9.10-cp314-cp314t-manylinux_2_28_armv7l.whl", hash = "sha256:3e9e5b451432d019a5301f91d16916c434bd9a178bb3b19367bd57fc9208de3f", size = 359112, upload-time = "2026-03-22T12:42:38.59Z" },
-    { url = "https://files.pythonhosted.org/packages/fa/86/2ad78b301a6661000f05714b435b3412cdba073151aa9fb375c544b83f31/pyromark-0.9.10-cp314-cp314t-manylinux_2_28_i686.whl", hash = "sha256:27c403034795367ccc318f723cec3d1c63d26fd1b0c4d6b7d5867f5d42520138", size = 385027, upload-time = "2026-03-22T12:46:09.345Z" },
-    { url = "https://files.pythonhosted.org/packages/ee/e7/6ca82f55c55799cc6b13b2f129318fb7d6abcf39d15d9be88b793bbe9afe/pyromark-0.9.10-cp314-cp314t-manylinux_2_28_ppc64le.whl", hash = "sha256:8c84d1dba7abd6404f35655a676172bc5ae1f1f97f6e39c5eb9bf0c864e5b1a8", size = 406499, upload-time = "2026-03-22T12:44:41.55Z" },
-    { url = "https://files.pythonhosted.org/packages/0f/52/d81dd65198b7a6bd952e5187d391d4837a5dbfda834938c16933809efea8/pyromark-0.9.10-cp314-cp314t-manylinux_2_28_s390x.whl", hash = "sha256:582150c7bc05e5df8ef962614c36e1321f9a3d7c07ed3c410ecd65aed74e96d4", size = 448287, upload-time = "2026-03-22T12:44:59.464Z" },
-    { url = "https://files.pythonhosted.org/packages/10/ad/71c4b8e41b7a27ab2e21de453145cc7ed9e5f869d532683669c85e991169/pyromark-0.9.10-cp314-cp314t-manylinux_2_28_x86_64.whl", hash = "sha256:b9e90ac2e18aa6feacdd3e92647e47ed0a433d4d1f918466b9f4b9aa7f95b46f", size = 369471, upload-time = "2026-03-22T12:47:35.881Z" },
-    { url = "https://files.pythonhosted.org/packages/6d/bb/6f82599d4407a671f7f797d98ebb53c9184c802e1d58111d5a71be77ef71/pyromark-0.9.10-cp314-cp314t-manylinux_2_31_riscv64.whl", hash = "sha256:f58de15053efc81d55757316191aad53128d52b47e2399d1f71aa4a773d3b23b", size = 370239, upload-time = "2026-03-22T12:44:11.823Z" },
-    { url = "https://files.pythonhosted.org/packages/12/b0/6a49b2af6568c11e0e4ee9203a76e010ab35b510a78a6b0efa4c7a1d022b/pyromark-0.9.10-cp314-cp314t-musllinux_1_2_aarch64.whl", hash = "sha256:c7af63a1d56981aebff37fc075573346c252b5f78d0091b01ddd0478068a4b18", size = 539108, upload-time = "2026-03-22T12:44:35.504Z" },
-    { url = "https://files.pythonhosted.org/packages/0a/3e/f635c494a15f2bb5c944366c0199d101ccf77eedbdc1fce7a6838a301a11/pyromark-0.9.10-cp314-cp314t-musllinux_1_2_armv7l.whl", hash = "sha256:770836297d0cca34e2c85b083fb4e7b8314cbe4588f313bb61838d02bb879656", size = 635605, upload-time = "2026-03-22T12:46:39.01Z" },
-    { url = "https://files.pythonhosted.org/packages/b9/d2/2648d624c8c666986aa3b15cd1f3d6089e443e13ce2d06781e5ffa844909/pyromark-0.9.10-cp314-cp314t-musllinux_1_2_i686.whl", hash = "sha256:6ee98e2a1a71f7482ca76fc0ee82d188de49d4aeb38134bfb618eb4ff897c5f0", size = 602635, upload-time = "2026-03-22T12:44:52.847Z" },
-    { url = "https://files.pythonhosted.org/packages/cc/76/7bfa77613f9928cfc729571e1289af10e946f493afa2193b9cab32ecef77/pyromark-0.9.10-cp314-cp314t-musllinux_1_2_ppc64le.whl", hash = "sha256:fc8e5727eb1f25053f63cb811c4df080e44855b9f9ae0c0353f57ab3eaec8673", size = 537854, upload-time = "2026-03-22T12:43:01.408Z" },
-    { url = "https://files.pythonhosted.org/packages/94/3e/b651e682b618d03136eaf226938926f19c289bcf3301b5598d0ee5cbcd52/pyromark-0.9.10-cp314-cp314t-musllinux_1_2_riscv64.whl", hash = "sha256:44a4d21becf02bbc9663284e33a393f7fdbc460ef98dda451406f4342027f774", size = 543902, upload-time = "2026-03-22T12:42:28.363Z" },
-    { url = "https://files.pythonhosted.org/packages/bd/8b/885f4c7b1581cd9850a7913fdcc46da89926caa5b72effa6aaa80cc76da5/pyromark-0.9.10-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:274b2c785e4a33b66646b6980ea3bc5fb0b3d04cda316cc6e3c3f0ea7986e14d", size = 589002, upload-time = "2026-03-22T12:47:43.172Z" },
-    { url = "https://files.pythonhosted.org/packages/b7/8c/fd6716ce80e5c1b981ba83239e21f6a705eae4aa9036b0612c563a3cebd9/pyromark-0.9.10-cp314-cp314t-win32.whl", hash = "sha256:016fa16b4926bd4bb8e21409e3f66ab94a54e165e2b381f4217125babb82f50b", size = 260320, upload-time = "2026-03-22T12:42:50.392Z" },
-    { url = "https://files.pythonhosted.org/packages/17/06/d1d1ac2ad634bab28535d226758fa8753d76d96f225c1e662d2b55205550/pyromark-0.9.10-cp314-cp314t-win_amd64.whl", hash = "sha256:5dc38aebcb81a6d86d6e0d80ffbe194aae443d5072eff6dc65908ba608719071", size = 273015, upload-time = "2026-03-22T12:42:37.534Z" },
-    { url = "https://files.pythonhosted.org/packages/4e/35/b28e282e79e0c3009b0e23912953d18f569982d83b11849a85d1ac6d33d5/pyromark-0.9.10-cp314-cp314t-win_arm64.whl", hash = "sha256:a92de094e7f9c0e62910d8859bef6362baa1c0f170abcee48d67d6f8f3a68308", size = 258076, upload-time = "2026-03-22T12:47:06.217Z" },
-]
-
-[[package]]
 name = "python-dotenv"
 version = "1.2.2"
 source = { registry = "https://pypi.org/simple" }
@@ -781,18 +718,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/a2/87/a6771e1546d97e7e041b6ae58d80074f81b7d5121207425c964ddf5cfdbd/sniffio-1.3.1.tar.gz", hash = "sha256:f4324edc670a0f49750a81b895f35c3adb843cca46f0530f79fc1babb23789dc", size = 20372, upload-time = "2024-02-25T23:20:04.057Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e9/44/75a9c9421471a6c4805dbf2356f7c181a29c1879239abab1ea2cc8f38b40/sniffio-1.3.1-py3-none-any.whl", hash = "sha256:2f6da418d1f1e0fddd844478f41680e794e6051915791a034ff65e5f100525a2", size = 10235, upload-time = "2024-02-25T23:20:01.196Z" },
-]
-
-[[package]]
-name = "telegramify-markdown"
-version = "1.1.5"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pyromark" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/89/db/198bda5ba14b83b714fe5b632992684fac8fa2c07bbc7b14508e8f67e9a9/telegramify_markdown-1.1.5.tar.gz", hash = "sha256:56da17648849f86a351eb712eef4461f8c11aecc7fd27a293f5d9a0a6333b22d", size = 61782, upload-time = "2026-05-10T08:49:40.136Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ec/3e/5a68e10227008a820bad5e5b75cc71cbde03db1c4093d6026279463ccb65/telegramify_markdown-1.1.5-py3-none-any.whl", hash = "sha256:9742d56993be3db2cf9c2a61cbb257f8b34b6013a9ff27af5a569509df6673c0", size = 43329, upload-time = "2026-05-10T08:49:38.847Z" },
 ]
 
 [[package]]

@@ -10,9 +10,8 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from aiogram import BaseMiddleware, Bot, F, Router
-from aiogram.enums import ParseMode
 from aiogram.filters import Command
-from aiogram.types import ChatMemberUpdated, Message, ReactionTypeEmoji, TelegramObject
+from aiogram.types import ChatMemberUpdated, InputRichMessage, Message, ReactionTypeEmoji, TelegramObject
 
 from .analytics import aggregate_by_user, ask_question, build_summary
 from .config import Config
@@ -34,7 +33,7 @@ from .db import (
 )
 from .gemini import InlineImage
 from .logging_sink import chat_ref, log_to_chat
-from .telegram_delivery import html_to_text, send_text_or_document
+from .telegram_delivery import html_to_text, send_rich_or_document
 
 
 logger = logging.getLogger(__name__)
@@ -440,7 +439,7 @@ def build_router(config: Config) -> Router:
                 len(images),
                 len(context_messages),
             )
-            answer_text, answer_entities, answer_markdown = await ask_question(
+            answer_markdown = await ask_question(
                 ask_text,
                 chat_id=message.chat.id,
                 user_id=message.from_user.id if message.from_user else 0,
@@ -459,13 +458,13 @@ def build_router(config: Config) -> Router:
             await log_to_chat(bot, config.logs_chat_id, f"/ask failed:\n{tb}", level=logging.ERROR)
             await placeholder.edit_text("Failed to get an answer.")
             return
-        await send_text_or_document(
+        await send_rich_or_document(
             bot,
             message.chat.id,
-            answer_text,
+            InputRichMessage(markdown=answer_markdown, skip_entity_detection=True),
             placeholder=placeholder,
             reply_to=message,
-            entities=answer_entities,
+            fallback_text=answer_markdown,
             filename="ask-answer.md",
             document_text=answer_markdown,
         )
@@ -646,15 +645,16 @@ async def _send_summary(
         gemini_api_key=config.gemini_api_key,
         gemini_model=config.gemini_model,
     )
-    sent = await send_text_or_document(
+    document_text = html_to_text(text)
+    sent = await send_rich_or_document(
         bot,
         chat_id,
-        text,
+        InputRichMessage(html=text, skip_entity_detection=True),
         placeholder=placeholder,
         reply_to=reply_to,
-        parse_mode=ParseMode.HTML,
+        fallback_text=document_text,
         filename="summary.md",
-        document_text=html_to_text(text),
+        document_text=document_text,
     )
     await save_last_summary(config.db_path, chat_id, sent.message_id, int(time.time()))
     await log_to_chat(bot, config.logs_chat_id, f"summary in {chat_ref(chat_id, chat_username)}:\n{text}")

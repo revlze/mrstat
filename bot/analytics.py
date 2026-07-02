@@ -3,10 +3,7 @@ import json
 import logging
 from collections.abc import Awaitable, Callable
 
-import telegramify_markdown
-
 from aiogram import html
-from aiogram.types import MessageEntity as TgEntity
 from openai import APIStatusError
 
 import time
@@ -126,7 +123,7 @@ async def ask_question(
     gemini_model_ask: str | None = None,
     images: list[InlineImage] | None = None,
     history_question: str | None = None,
-) -> tuple[str, list, str]:
+) -> str:
     history = await get_ask_history(db_path, chat_id, user_id)
     messages = [
         {"role": "system", "content": ASK_SYSTEM_PROMPT},
@@ -192,9 +189,7 @@ async def ask_question(
         saved_question = f"{saved_question}\n[image omitted: model did not support image input]"
     await append_ask_history(db_path, chat_id, user_id, "user", saved_question, now)
     await append_ask_history(db_path, chat_id, user_id, "assistant", content, now)
-    text, entities = telegramify_markdown.convert(content)
-    text, entities = _as_expandable_quote(text, entities)
-    return text, entities, content
+    return content
 
 
 def _is_image_input_rejected(exc: APIStatusError) -> bool:
@@ -364,25 +359,24 @@ def _format_telegram(data: dict) -> str:
     users = data.get("users") or []
     users_sorted = sorted(users, key=lambda u: u.get("iq", 0), reverse=True)
 
-    parts = ["📊 Саммари за сутки"]
+    parts = [_rich_heading("📊 Саммари за сутки")]
 
     if summary_text:
-        parts.append(html.expandable_blockquote(_disable_mentions(summary_text)))
+        parts.append(_rich_details("Саммари", _rich_preline(_disable_mentions(summary_text))))
     elif data.get("summary_error"):
-        parts.append(html.expandable_blockquote("Обзор временно не собрался: модель не ответила вовремя."))
+        parts.append(_rich_details("Саммари", _rich_preline("Обзор временно не собрался: модель не ответила вовремя.")))
 
-    iq_lines = ["🧠 IQ-рейтинг:"]
+    iq_lines = []
     if users_sorted:
         for index, user in enumerate(users_sorted, 1):
             name = html.quote(_disable_mentions(user.get("name") or "???"))
-            iq = user.get("iq", "???")
+            iq = html.quote(str(user.get("iq", "???")))
             comment = (user.get("comment") or "").strip()
-            suffix = f" · {html.quote(comment)}" if comment else ""
+            suffix = f" · {html.quote(_disable_mentions(comment))}" if comment else ""
             iq_lines.append(f"{index}. {name} — {iq}{suffix}")
     elif data.get("iq_error"):
-        iq_lines.append("Временно не собрался: модель не ответила вовремя.")
-    parts.append(html.expandable_blockquote("\n".join(iq_lines)))
-    parts.append("#summary")
+        iq_lines.append(html.quote("Временно не собрался: модель не ответила вовремя."))
+    parts.append(_rich_details("🧠 IQ-рейтинг", "<br>".join(iq_lines) if iq_lines else _rich_preline("Нет данных.")))
     return "\n\n".join(parts)
 
 
@@ -390,8 +384,13 @@ def _disable_mentions(text: str) -> str:
     return text.replace("@", "@\u200b")
 
 
-def _as_expandable_quote(text: str, entities: list) -> tuple[str, list[TgEntity]]:
-    aio_entities = [TgEntity(**e.to_dict()) for e in entities if e.type != "pre"]
-    utf16_len = len(text.encode("utf-16-le")) // 2
-    quote = TgEntity(type="expandable_blockquote", offset=0, length=utf16_len)
-    return text, [quote] + aio_entities
+def _rich_heading(text: str) -> str:
+    return f"<h3>{html.quote(text)}</h3>"
+
+
+def _rich_details(summary: str, body_html: str) -> str:
+    return f"<details open><summary>{html.quote(summary)}</summary>\n<blockquote>{body_html}</blockquote></details>"
+
+
+def _rich_preline(text: str) -> str:
+    return "<br>".join(html.quote(text).splitlines())
