@@ -8,6 +8,8 @@ class Config:
     llm_api_key: str
     llm_base_url: str
     llm_model: str
+    llm_ask_model: str
+    llm_ask_web_search: bool
     llm_timeout: float
     gemini_api_key: str | None
     gemini_model: str | None
@@ -40,16 +42,28 @@ class Config:
     @classmethod
     def from_env(cls) -> Config:
         gemini_model = os.getenv("GEMINI_MODEL_SUMMARY") or None
+        openai_api_key = os.getenv("OPENAI_API_KEY")
+        freemodel_api_key = os.getenv("FREEMODEL_API_KEY")
+        openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
         llm_api_key = (
-            os.getenv("OPENAI_API_KEY")
-            or os.getenv("FREEMODEL_API_KEY")
-            or os.getenv("OPENROUTER_API_KEY")
+            openai_api_key
+            or freemodel_api_key
+            or openrouter_api_key
+        )
+        uses_openrouter = bool(
+            openrouter_api_key and not openai_api_key and not freemodel_api_key
         )
         gemini_api_key = os.getenv("GEMINI_API_KEY") or None
         if not llm_api_key and not (gemini_model and gemini_api_key):
             raise RuntimeError(
                 "Missing required env var: FREEMODEL_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, or GEMINI_API_KEY with GEMINI_MODEL_SUMMARY"
             )
+        llm_model = (
+            os.getenv("OPENAI_MODEL")
+            or os.getenv("FREEMODEL_MODEL")
+            or os.getenv("OPENROUTER_MODEL")
+            or "deepseek/deepseek-chat"
+        )
         return cls(
             bot_token=_required("BOT_TOKEN"),
             llm_api_key=llm_api_key or "",
@@ -59,11 +73,14 @@ class Config:
                 or os.getenv("OPENROUTER_BASE_URL")
                 or "https://openrouter.ai/api/v1"
             ),
-            llm_model=(
-                os.getenv("OPENAI_MODEL")
-                or os.getenv("FREEMODEL_MODEL")
-                or os.getenv("OPENROUTER_MODEL")
-                or "deepseek/deepseek-chat"
+            llm_model=llm_model,
+            llm_ask_model=(
+                os.getenv("OPENROUTER_MODEL_ASK") if uses_openrouter else None
+            )
+            or llm_model,
+            llm_ask_web_search=(
+                uses_openrouter
+                and _parse_bool(os.getenv("OPENROUTER_ASK_WEB_SEARCH", "false"))
             ),
             llm_timeout=float(os.getenv("LLM_TIMEOUT_SECONDS", "180")),
             gemini_api_key=gemini_api_key,
@@ -107,3 +124,7 @@ def _parse_username_set(raw: str) -> frozenset[str]:
         for part in raw.replace(";", ",").split(",")
         if (username := part.strip().lstrip("@").lower())
     )
+
+
+def _parse_bool(raw: str) -> bool:
+    return raw.strip().lower() in {"1", "true", "yes", "on"}

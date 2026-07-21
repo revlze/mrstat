@@ -119,6 +119,7 @@ async def ask_question(
     base_url: str,
     model: str,
     timeout: float,
+    web_search: bool = False,
     gemini_api_key: str | None = None,
     gemini_model_ask: str | None = None,
     images: list[InlineImage] | None = None,
@@ -147,9 +148,10 @@ async def ask_question(
         )
     else:
         logger.info(
-            "/ask target provider=openai-compatible base_url=%s model=%s grounding=false images=%d",
+            "/ask target provider=openai-compatible base_url=%s model=%s web_search=%s images=%d",
             base_url,
             model,
+            web_search,
             len(images or []),
         )
         try:
@@ -160,6 +162,7 @@ async def ask_question(
                 messages=messages,
                 images=images,
                 timeout=timeout,
+                web_search=web_search,
             )
         except APIStatusError as exc:
             if not (images and _is_image_input_rejected(exc)):
@@ -177,6 +180,7 @@ async def ask_question(
                 messages=messages,
                 images=None,
                 timeout=timeout,
+                web_search=web_search,
             )
     if not content or not content.strip():
         raise RuntimeError("AI returned empty response")

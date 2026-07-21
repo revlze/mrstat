@@ -31,7 +31,18 @@ FREEMODEL_BASE_URL=https://api.freemodel.dev
 FREEMODEL_MODEL=gpt-5.5
 ```
 
-Gemini is enabled separately:
+With OpenRouter, `/ask` can use a separate multimodal model and optional web search while summaries stay on the default model:
+
+```env
+OPENROUTER_API_KEY=...
+OPENROUTER_MODEL=deepseek/deepseek-v4-flash
+OPENROUTER_MODEL_ASK=google/gemini-3.1-flash-lite
+OPENROUTER_ASK_WEB_SEARCH=true
+```
+
+OpenRouter web search uses its model-callable server tool, so the ask model decides when a search is needed. Search usage is billed separately by OpenRouter.
+
+The direct Gemini API is also supported separately:
 
 ```env
 GEMINI_API_KEY=...

@@ -33,6 +33,7 @@ async def vision_chat_completion(
     messages: list[dict],
     images: list[InlineImage] | None = None,
     timeout: float = 60.0,
+    web_search: bool = False,
 ) -> str:
     client = AsyncOpenAI(
         api_key=api_key,
@@ -42,6 +43,18 @@ async def vision_chat_completion(
     response = await client.chat.completions.create(
         model=model,
         messages=_with_images(messages, images),
+        extra_body=(
+            {
+                "tools": [
+                    {
+                        "type": "openrouter:web_search",
+                        "parameters": {"max_results": 5, "max_total_results": 10},
+                    }
+                ]
+            }
+            if web_search
+            else None
+        ),
     )
     return response.choices[0].message.content or ""
 
