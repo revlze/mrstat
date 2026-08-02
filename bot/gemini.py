@@ -52,9 +52,14 @@ async def chat_completion(
             if grounding
             else (
                 "application/json"
-                if response_format and response_format.get("type") == "json_object"
+                if response_format and response_format.get("type") in {"json_object", "json_schema"}
                 else None
             )
+        ),
+        response_json_schema=(
+            response_format.get("json_schema", {}).get("schema")
+            if response_format and response_format.get("type") == "json_schema"
+            else None
         ),
         tools=[Tool(google_search=GoogleSearch())] if grounding else None,
     )
