@@ -332,18 +332,54 @@ def _openai_json_completion(
     timeout: float,
 ) -> Callable[[str, list[dict]], Awaitable[str]]:
     async def complete(label: str, messages: list[dict]) -> str:
-        content = await openai_chat_completion(
-            api_key=api_key,
-            base_url=base_url,
-            model=model,
-            messages=messages,
-            response_format={"type": "json_object"},
-            timeout=timeout,
-        )
+        try:
+            content = await openai_chat_completion(
+                api_key=api_key,
+                base_url=base_url,
+                model=model,
+                messages=messages,
+                response_format=_json_schema_response_format(label),
+                timeout=timeout,
+            )
+        except APIStatusError as exc:
+            if not _is_response_format_rejected(exc):
+                raise
+            logger.warning(
+                "/summary provider=openai-compatible model=%s rejected json_schema response_format; retrying with json_object",
+                model,
+                exc_info=True,
+            )
+            content = await openai_chat_completion(
+                api_key=api_key,
+                base_url=base_url,
+                model=model,
+                messages=messages,
+                response_format={"type": "json_object"},
+                timeout=timeout,
+            )
         logger.info("%s raw response (%d chars):\n%s", label, len(content or ""), content)
         return content
 
     return complete
+
+
+def _json_schema_response_format(label: str) -> dict:
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": f"mrstat_{label}",
+            "schema": {"type": "object"},
+        },
+    }
+
+
+def _is_response_format_rejected(exc: APIStatusError) -> bool:
+    if exc.status_code != 400:
+        return False
+    body = getattr(exc, "body", None)
+    message = getattr(exc, "message", "")
+    text = f"{message} {body} {exc}".lower()
+    return "response_format" in text or "json_schema" in text
 
 
 def _display_name(message: StoredMessage) -> str:
