@@ -26,6 +26,34 @@ from .prompts import (
 
 logger = logging.getLogger(__name__)
 
+_SUMMARY_RESPONSE_SCHEMA = {
+    "type": "object",
+    "properties": {"summary": {"type": "string"}},
+    "required": ["summary"],
+    "additionalProperties": False,
+}
+
+_IQ_RESPONSE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "users": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "iq": {"type": "integer"},
+                    "comment": {"type": "string"},
+                },
+                "required": ["name", "iq", "comment"],
+                "additionalProperties": False,
+            },
+        }
+    },
+    "required": ["users"],
+    "additionalProperties": False,
+}
+
 
 def aggregate_by_user(
     messages: list[StoredMessage],
@@ -317,7 +345,7 @@ def _gemini_json_completion(
             api_key=api_key,
             model=model,
             messages=messages,
-            response_format={"type": "json_object"},
+            response_format=_structured_response_format(label),
         )
         logger.info("%s raw response (%d chars):\n%s", label, len(content or ""), content)
         return content
@@ -337,13 +365,28 @@ def _openai_json_completion(
             base_url=base_url,
             model=model,
             messages=messages,
-            response_format={"type": "json_object"},
+            response_format=_structured_response_format(label),
             timeout=timeout,
         )
         logger.info("%s raw response (%d chars):\n%s", label, len(content or ""), content)
         return content
 
     return complete
+
+
+def _structured_response_format(label: str) -> dict:
+    schemas = {
+        "summary": _SUMMARY_RESPONSE_SCHEMA,
+        "iq": _IQ_RESPONSE_SCHEMA,
+    }
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": f"{label}_response",
+            "strict": True,
+            "schema": schemas[label],
+        },
+    }
 
 
 def _display_name(message: StoredMessage) -> str:
